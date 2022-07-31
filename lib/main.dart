@@ -21,7 +21,16 @@ class MyApp extends StatelessWidget {
         lazy: false,
         create: (context) => OpenDrive(),
         child: MaterialApp(
-            title: 'Material App',
+            theme: ThemeData(primarySwatch: Colors.blue),
+            darkTheme: ThemeData(
+                primarySwatch: Colors.blue,
+                colorScheme: const ColorScheme.dark().copyWith(
+                  primary: Colors.blue,
+                  secondary: Colors.blue,
+                ),
+                scaffoldBackgroundColor: Colors.black87),
+            themeMode: ThemeMode.system,
+            title: 'Open Cloud',
             home: const SplashScreen(),
             routes: {
               AuthDesider.routeName: (context) => const AuthDesider(),
