@@ -16,7 +16,7 @@ Just Upload your config for your firebase project and you have your own cloud st
 2. Enable FireStore for the first project It will Store all 3. your Configurations for other firebase projects.
 4. Enable Email/Password Authentication for the first project.
 5. Enable Storage for all projects.
-6. Regigister app with firebase and download google-services.json file for all projects.
+6. Register app with firebase and download google-services.json file for all projects.
 7. Add all the google-services.json files to the app.
 
 ## features 📋
