@@ -6,17 +6,18 @@ It is A unlimited Cloud Storage App. Powered By Firebase Free Tier.
 Just Upload your config for your firebase project and you have your own cloud storage app.
 
 ## How is it Unlimited? ♾️
-Firebase Free Tier is unlimited. You can upload as much as you want. But you can't download more than 1GB per day.
-But By adding multiple firebase projects you can download more than 1GB per day.
-You can add unlimited firebase projects That's why it is unlimited.
+- Firebase Free Tier is unlimited. You can upload as much as you want. But you can't download more than 1GB per day.
+- But By adding multiple firebase projects you can download more than 1GB per day.
+- You can add unlimited firebase projects That's why it is unlimited.
 
 ## How to use it? 🤔
-Create a firebase project
-Enable FireStore for the first project It will Store all your Configurations for other firebase projects.
-Enable Email/Password Authentication for the first project.
-Enable Storage for all projects.
-Regigister app with firebase and download google-services.json file for all projects.
-Add all the google-services.json files to the app.
+
+1. Create a firebase project
+2. Enable FireStore for the first project It will Store all 3. your Configurations for other firebase projects.
+4. Enable Email/Password Authentication for the first project.
+5. Enable Storage for all projects.
+6. Regigister app with firebase and download google-services.json file for all projects.
+7. Add all the google-services.json files to the app.
 
 ## features 📋
 - Unlimited Cloud Storage
