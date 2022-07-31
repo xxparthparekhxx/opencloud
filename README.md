@@ -26,7 +26,9 @@ Add all the google-services.json files to the app.
 - [x] Unlimited upload upto 5gb 
 - [ ] Making a website for the app
 - [ ] Convering all the Projects into a Single Volume of storage so that you can download a Single file bigger then one gb.
-- [ ] Adding more features
+- [ ] Sharing Files with other users 
+- [ ] Access Control for files
+- [ ] Making Better UI/UX
 
 ## Contributing 🤝
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
