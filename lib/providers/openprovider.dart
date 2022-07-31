@@ -92,27 +92,31 @@ class OpenDrive with ChangeNotifier {
             .get())
         .docs) {
       if (FBOPSfromJson(doc.data()["data"].toString()).apiKey ==
-          FBOPSfromJson(data).apiKey) {
+              FBOPSfromJson(data).apiKey &&
+          _prefs!.getString("BaseConfig") != null) {
         throw Exception("Project already exists");
       }
     }
 
+    // save in Firebase
+    if (_prefs!.getString("BaseConfig") != null) {
+      int count = ((await FirebaseFirestore.instanceFor(app: _Baseapp!)
+              .collection("projects")
+              .get())
+          .docs
+          .length);
+      await FirebaseFirestore.instanceFor(app: _Baseapp!)
+          .collection("projects")
+          .doc("$count")
+          .set({"data": data});
+    }
     // save in SharedPreferences if first project is not saved
     print(
         "isFirst \n\n\n\n\n\n >>>>>> ${_prefs!.getString("BaseConfig") == null} \n\n\n\n\n\n\n");
     if (_prefs!.getString("BaseConfig") == null) {
       print(await _prefs!.setString("BaseConfig", data));
     }
-    // save in Firebase
-    int count = ((await FirebaseFirestore.instanceFor(app: _Baseapp!)
-            .collection("projects")
-            .get())
-        .docs
-        .length);
-    await FirebaseFirestore.instanceFor(app: _Baseapp!)
-        .collection("projects")
-        .doc("$count")
-        .set({"data": data});
+
     await fetchAllProjectsOfCurrentUser();
     notifyListeners();
   }

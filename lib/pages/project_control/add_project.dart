@@ -36,21 +36,22 @@ class _AddProjectState extends State<AddProject> {
                   allowedExtensions: ['json'],
                 );
                 if (res != null) {
-                  // try {
-                  String file =
-                      await File(res.files.first.path!).readAsString();
-                  await Provider.of<OpenDrive>(context, listen: false)
-                      .createProjectFromJson(
-                          data: file, isInitial: widget.isInital);
-                  Navigator.of(context).pop();
-                  // } catch (e) {
-                  // print(e);
-                  // ScaffoldMessenger.of(context).showSnackBar(
-                  // SnackBar(
-                  // content: Text(e.toString()),
-                  // ),
-                  // );
-                  // }
+                  try {
+                    print(res.files.first.path);
+                    String file =
+                        await File(res.files.first.path!).readAsString();
+                    await Provider.of<OpenDrive>(context, listen: false)
+                        .createProjectFromJson(
+                            data: file, isInitial: widget.isInital);
+                    Navigator.of(context).pop();
+                  } catch (e) {
+                    print(e);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(e.toString()),
+                      ),
+                    );
+                  }
                 }
                 // await Provider.of<OpenDrive>(context, listen: false)
                 //     .createProjectFromJson();
