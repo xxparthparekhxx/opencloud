@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -158,10 +159,11 @@ class OpenDrive with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<ListResult> listAllTheFilesOfAProject(FirebaseApp proj) async {
+  Future<ListResult> listAllTheFilesOfAProject(
+      FirebaseApp proj, String? path) async {
     return FirebaseStorage.instanceFor(
             app: proj, bucket: proj.options.storageBucket)
-        .ref()
+        .ref(path ?? "")
         .listAll();
   }
 
@@ -180,17 +182,42 @@ class OpenDrive with ChangeNotifier {
         mode: LaunchMode.externalApplication);
   }
 
-  Future<int> uploadFileToProject(
-      {required FirebaseApp app, required String path}) async {
+  Future<void> createFolder(
+      {required String path,
+      required String name,
+      required FirebaseApp proj}) async {
+    await FirebaseStorage.instanceFor(
+            app: proj, bucket: proj.options.storageBucket)
+        .ref(path)
+        .child("$name/NEWFILEPLACEHOLDER.txt")
+        .putData(Uint8List(0));
+  }
+
+  Future<List<int>> uploadFileToProject(
+      {required FirebaseApp app,
+      String? uploadpath,
+      required List<String> paths}) async {
     var storage = FirebaseStorage.instanceFor(
         app: app, bucket: app.options.storageBucket);
+    List<int> ids = [];
+    List<Future> brr = [
+      for (var path in paths) uploads(storage, uploadpath, path, app)
+    ];
+    for (var element in brr) {
+      ids.add(await element);
+    }
+
+    return ids;
+  }
+
+  Future<int> uploads(FirebaseStorage storage, String? uploadpath, String path,
+      FirebaseApp app) async {
     UploadTask task =
-        storage.ref("/${path.split("/").last}").putFile(File(path));
+        storage.ref("$uploadpath/${path.split("/").last}").putFile(File(path));
     final int id = DateTime.now().microsecondsSinceEpoch;
     _uploadingTasks.add(UploadMeta(id, task, app.options.projectId));
     notifyListeners();
     await task.whenComplete(() {
-      print("uploadcomplete");
       _uploadingTasks.removeWhere((element) => element.id == id);
       notifyListeners();
     });

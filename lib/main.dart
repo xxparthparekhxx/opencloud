@@ -1,4 +1,3 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:opencloud/pages/auth/login.dart';
 import 'package:opencloud/pages/project_control/add_project.dart';
@@ -41,7 +40,7 @@ class MyApp extends StatelessWidget {
             },
             onGenerateRoute: (settings) {
               if (settings.name == ListOFProjectFiles.routeName) {
-                final args = settings.arguments as FirebaseApp;
+                final args = settings.arguments as ListOFProjectFilesData;
                 return MaterialPageRoute(
                   builder: (context) {
                     return ListOFProjectFiles(args);

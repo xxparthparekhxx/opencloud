@@ -17,14 +17,17 @@ class ListOfProjects extends StatelessWidget {
             itemCount: Provider.of<OpenDrive>(context).Projects.length,
             itemBuilder: (context, index) {
               return ListTile(
+                leading: const Icon(Icons.work_outlined),
                 title: Text(Provider.of<OpenDrive>(context)
                     .Projects[index]
                     .options
                     .projectId),
                 onTap: () {
                   Navigator.of(context).pushNamed(ListOFProjectFiles.routeName,
-                      arguments: Provider.of<OpenDrive>(context, listen: false)
-                          .Projects[index]);
+                      arguments: ListOFProjectFilesData(
+                          Provider.of<OpenDrive>(context, listen: false)
+                              .Projects[index],
+                          ""));
                 },
               );
             }),
