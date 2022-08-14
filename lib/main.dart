@@ -17,37 +17,49 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-        lazy: false,
-        create: (context) => OpenDrive(),
-        child: MaterialApp(
-            theme: ThemeData(primarySwatch: Colors.blue),
-            darkTheme: ThemeData(
-                primarySwatch: Colors.blue,
-                colorScheme: const ColorScheme.dark().copyWith(
-                  primary: Colors.blue,
-                  secondary: Colors.blue,
-                ),
-                scaffoldBackgroundColor: Colors.black87),
-            themeMode: ThemeMode.system,
-            title: 'Open Cloud',
-            home: const SplashScreen(),
-            routes: {
-              AuthDesider.routeName: (context) => const AuthDesider(),
-              AddProject.routeName: (context) => const AddProject(),
-              ListOfProjects.routeName: (context) => const ListOfProjects(),
-              Settings.routeName: (context) => const Settings(),
-              Uploads.routeName: (context) => const Uploads(),
-            },
-            onGenerateRoute: (settings) {
-              if (settings.name == ListOFProjectFiles.routeName) {
-                final args = settings.arguments as ListOFProjectFilesData;
-                return MaterialPageRoute(
-                  builder: (context) {
-                    return ListOFProjectFiles(args);
-                  },
-                );
-              }
-              return null;
-            }));
+      lazy: false,
+      create: (context) => OpenDrive(),
+      child: const App(),
+    );
+  }
+}
+
+class App extends StatelessWidget {
+  const App({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+        theme: ThemeData(primarySwatch: Colors.blue),
+        darkTheme: ThemeData(
+            primarySwatch: Colors.blue,
+            colorScheme: const ColorScheme.dark().copyWith(
+              primary: Colors.blue,
+              secondary: Colors.blue,
+            ),
+            scaffoldBackgroundColor: Colors.black87),
+        themeMode: ThemeMode.system,
+        title: 'Open Cloud',
+        home: const SplashScreen(),
+        routes: {
+          AuthDesider.routeName: (context) => const AuthDesider(),
+          AddProject.routeName: (context) => const AddProject(),
+          ListOfProjects.routeName: (context) => const ListOfProjects(),
+          Settings.routeName: (context) => const Settings(),
+          Uploads.routeName: (context) => const Uploads(),
+        },
+        onGenerateRoute: (settings) {
+          if (settings.name == ListOFProjectFiles.routeName) {
+            final args = settings.arguments as ListOFProjectFilesData;
+            return MaterialPageRoute(
+              builder: (context) {
+                return ListOFProjectFiles(args);
+              },
+            );
+          }
+          return null;
+        });
   }
 }

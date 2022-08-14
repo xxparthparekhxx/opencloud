@@ -4,7 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:miniplayer/miniplayer.dart';
+import 'package:opencloud/pages/player/player.dart';
 import 'package:opencloud/pages/project_control/uploads.dart';
+import 'package:opencloud/pages/project_control/widgets/bottomnavigation.dart';
 import 'package:opencloud/pages/project_control/widgets/file_options.dart';
 import 'package:opencloud/pages/project_control/widgets/file_type.dart';
 import 'package:opencloud/providers/openprovider.dart';
@@ -47,6 +50,14 @@ class _ListOFProjectFilesState extends State<ListOFProjectFiles> {
 
   addToParent(List<int> a) => waitingForUpload.addAll(a);
 
+  void updateindex(e) {
+    setState(() {
+      selectedIndex = e;
+    });
+  }
+
+  int selectedIndex = 0;
+
   @override
   Widget build(BuildContext context) {
     var tasks = Provider.of<OpenDrive>(context).uploadingTasks;
@@ -60,16 +71,22 @@ class _ListOFProjectFilesState extends State<ListOFProjectFiles> {
         }();
       }
     }
-    return _listResult != null
-        ? ListFiles(
-            projectId: widget.data.app.options.projectId,
-            app: widget.data.app,
-            reload: reload,
-            addToParent: addToParent,
-            listResult: _listResult!,
-            path: widget.data.path,
-          )
-        : const Center(child: CircularProgressIndicator());
+    return Scaffold(
+      body: _listResult != null
+          ? selectedIndex == 0
+              ? ListFiles(
+                  projectId: widget.data.app.options.projectId,
+                  app: widget.data.app,
+                  reload: reload,
+                  addToParent: addToParent,
+                  listResult: _listResult!,
+                  path: widget.data.path,
+                )
+              : const Uploads()
+          : const Center(child: CircularProgressIndicator()),
+      bottomNavigationBar:
+          BottomNav(currentIndex: selectedIndex, onTap: updateindex),
+    );
   }
 }
 
@@ -144,167 +161,219 @@ class _ListFilesState extends State<ListFiles> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: multiSelecting
-            ? IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () {
-                  setState(() {
-                    multiSelecting = false;
-                    selected.clear();
-                  });
-                },
-              )
-            : null,
-        title: Text(multiSelecting
-            ? "${selected.length} ${selected.length == 1 ? 'item' : 'items'} "
-            : widget.projectId),
-        actions: [
-          if (multiSelecting)
-            IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: () async {
-                setState(() {
-                  Loading = true;
-                });
-
-                Iterable<Future> deletes = selected.map((e) {
-                  if (selected[0].fullPath.split('/').last.split(".").length ==
-                      1) {
-                    return deleteFolder(e);
-                  } else {
-                    return e.delete();
-                  }
-                });
-
-                for (var e in deletes) {
-                  await e;
-                }
-                setState(() {
-                  Loading = false;
-                });
-                setState(() {
-                  Loading = false;
-                  multiSelecting = false;
-                  selected.clear();
-                });
-                await widget.reload();
-              },
-            ),
-          if (Provider.of<OpenDrive>(context).uploadingTasks.isNotEmpty &&
-              !multiSelecting)
-            IconButton(
-              icon: const Icon(Icons.cloud_upload_sharp),
-              onPressed: () {
-                Navigator.of(context).pushNamed(Uploads.routeName);
-              },
-            )
-        ],
-      ),
-      body: Column(
-        children: [
-          if (Loading) const LinearProgressIndicator(),
-          Expanded(
-            child: ListView(
-              children: [
-                for (var ele in widget.listResult.prefixes)
-                  (ele) {
-                    bool sel = selected.contains(ele);
-                    return ListTile(
-                      leading: sel
-                          ? const Icon(
-                              Icons.verified,
-                              color: Colors.blue,
-                            )
-                          : const Icon(Icons.folder_open_sharp),
-                      title: Text(ele.name),
-                      selected: sel,
-                      selectedColor: Colors.blue,
-                      onLongPress: () => startMultiSelect(ele),
-                      onTap: multiSelecting
-                          ? () => select(sel, ele)
-                          : () {
-                              Navigator.of(context).pushNamed(
-                                  ListOFProjectFiles.routeName,
-                                  arguments: ListOFProjectFilesData(
-                                      widget.app, ele.fullPath));
-                            },
-                    );
-                  }(ele),
-                for (var ele in widget.listResult.items)
-                  (ele) {
-                    bool sel = selected.contains(ele);
-
-                    return ListTile(
-                      leading: sel
-                          ? const Icon(
-                              Icons.verified,
-                              color: Colors.blue,
-                            )
-                          : FileTypeIcon(extension: ele.name.split(".").last),
-                      title: Text(ele.name),
-                      onTap: () => select(sel, ele),
-                      selected: sel,
-                      selectedColor: Colors.blue,
-                      onLongPress: () => startMultiSelect(ele),
-                      trailing: IconButton(
-                        onPressed: () async {
-                          showModalBottomSheet(
-                              context: context,
-                              builder: (c) {
-                                return FileOptions(
-                                  ele: ele,
-                                  app: widget.app,
-                                  reload: widget.reload,
-                                );
-                              });
-                        },
-                        icon: const Icon(Icons.more_vert),
-                      ),
-                    );
-                  }(ele)
-              ],
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: multiSelecting
-          ? null
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                    child: const Icon(Icons.create_new_folder_outlined),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            leading: multiSelecting
+                ? IconButton(
+                    icon: const Icon(Icons.close),
                     onPressed: () {
-                      //create a alert dialog to ask the user if they want to create a folder
-
-                      showDialog(
-                          context: context,
-                          builder: (context) {
-                            return NewFileAlertDialog(widget: widget);
-                          });
-                    }),
-                FloatingActionButton(
-                  child: const Icon(Icons.upload_file),
+                      setState(() {
+                        multiSelecting = false;
+                        selected.clear();
+                      });
+                    },
+                  )
+                : null,
+            title: Text(multiSelecting
+                ? "${selected.length} ${selected.length == 1 ? 'item' : 'items'} "
+                : widget.projectId),
+            actions: [
+              if (multiSelecting)
+                IconButton(
+                  icon: const Icon(Icons.delete),
                   onPressed: () async {
-                    FilePickerResult? re = await FilePicker.platform.pickFiles(
-                      allowCompression: false,
-                      allowMultiple: true,
-                    );
-                    if (re != null) {
-                      List<PlatformFile> files = re.files;
-                      widget.addToParent(
-                          await Provider.of<OpenDrive>(context, listen: false)
-                              .uploadFileToProject(
-                                  app: widget.app,
-                                  uploadpath: widget.path,
-                                  paths: files.map((e) => e.path!).toList()));
+                    setState(() {
+                      Loading = true;
+                    });
+
+                    Iterable<Future> deletes = selected.map((e) {
+                      if (selected[0]
+                              .fullPath
+                              .split('/')
+                              .last
+                              .split(".")
+                              .length ==
+                          1) {
+                        return deleteFolder(e);
+                      } else {
+                        return e.delete();
+                      }
+                    });
+
+                    for (var e in deletes) {
+                      await e;
                     }
+                    setState(() {
+                      Loading = false;
+                    });
+                    setState(() {
+                      Loading = false;
+                      multiSelecting = false;
+                      selected.clear();
+                    });
+                    await widget.reload();
                   },
                 ),
-              ],
-            ),
+              if (Provider.of<OpenDrive>(context).uploadingTasks.isNotEmpty &&
+                  !multiSelecting)
+                IconButton(
+                  icon: const Icon(Icons.cloud_upload_sharp),
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(Uploads.routeName);
+                  },
+                ),
+              IconButton(
+                  icon: const Icon(Icons.create_new_folder_outlined),
+                  onPressed: () {
+                    //create a alert dialog to ask the user if they want to create a folder
+                    showDialog(
+                        context: context,
+                        builder: (context) {
+                          return NewFileAlertDialog(widget: widget);
+                        });
+                  })
+            ],
+          ),
+          body: Column(
+            children: [
+              if (Loading) const LinearProgressIndicator(),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (var ele in widget.listResult.prefixes)
+                      (ele) {
+                        bool sel = selected.contains(ele);
+                        return ListTile(
+                          leading: sel
+                              ? const Icon(
+                                  Icons.verified,
+                                  color: Colors.blue,
+                                )
+                              : const Icon(Icons.folder_open_sharp),
+                          title: Text(ele.name),
+                          selected: sel,
+                          selectedColor: Colors.blue,
+                          onLongPress: () => startMultiSelect(ele),
+                          onTap: multiSelecting
+                              ? () => select(sel, ele)
+                              : () {
+                                  Navigator.of(context).pushNamed(
+                                      ListOFProjectFiles.routeName,
+                                      arguments: ListOFProjectFilesData(
+                                          widget.app, ele.fullPath));
+                                },
+                        );
+                      }(ele),
+                    for (Reference ele in widget.listResult.items)
+                      ele.fullPath.split("/").last == "NEWFILEPLACEHOLDER.txt"
+                          ? const SizedBox.shrink()
+                          : (Reference ele) {
+                              bool sel = selected.contains(ele);
+                              return ListTile(
+                                leading: sel
+                                    ? const Icon(
+                                        Icons.verified,
+                                        color: Colors.blue,
+                                      )
+                                    : FileTypeIcon(
+                                        extension: ele.name.split(".").last),
+                                title: Text(ele.name),
+                                onTap: multiSelecting
+                                    ? () => select(sel, ele)
+                                    : () {
+                                        if (["mp3", "mp4"].contains(ele.fullPath
+                                            .split("/")
+                                            .last
+                                            .split(".")
+                                            .last)) {
+                                          Provider.of<OpenDrive>(context,
+                                                  listen: false)
+                                              .startPlaying(
+                                                  widget.listResult.items,
+                                                  widget.listResult.items
+                                                      .indexOf(ele));
+                                        }
+                                      },
+                                selected: sel,
+                                selectedColor: Colors.blue,
+                                onLongPress: () => startMultiSelect(ele),
+                                trailing: IconButton(
+                                  onPressed: () async {
+                                    showModalBottomSheet(
+                                        context: context,
+                                        builder: (c) {
+                                          return FileOptions(
+                                            ele: ele,
+                                            app: widget.app,
+                                            reload: widget.reload,
+                                          );
+                                        });
+                                  },
+                                  icon: const Icon(Icons.more_vert),
+                                ),
+                              );
+                            }(ele)
+                  ],
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: multiSelecting
+              ? null
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton(
+                          child: const Icon(Icons.upload_file),
+                          onPressed: () async {
+                            FilePickerResult? re =
+                                await FilePicker.platform.pickFiles(
+                              allowCompression: false,
+                              allowMultiple: true,
+                            );
+                            if (re != null) {
+                              List<PlatformFile> files = re.files;
+                              widget.addToParent(await Provider.of<OpenDrive>(
+                                      context,
+                                      listen: false)
+                                  .uploadFileToProject(
+                                      app: widget.app,
+                                      uploadpath: widget.path,
+                                      paths:
+                                          files.map((e) => e.path!).toList()));
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    if (Provider.of<OpenDrive>(context).playerState !=
+                        PlayerState.notPlaying)
+                      const SizedBox(
+                        height: 55,
+                      )
+                  ],
+                ),
+        ),
+        if (Provider.of<OpenDrive>(context).playerState !=
+            PlayerState.notPlaying)
+          Miniplayer(
+            minHeight: 50,
+            maxHeight: MediaQuery.of(context).size.height,
+            builder: (height, percentage) {
+              if (percentage > 0.2) {
+                return const Player(miniPlayer: false);
+              } else {
+                return const Player(miniPlayer: true);
+                //return Text('mini');
+              }
+            },
+          )
+      ],
     );
   }
 }

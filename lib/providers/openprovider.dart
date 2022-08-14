@@ -4,11 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:opencloud/models/options.dart';
 import 'package:opencloud/models/storage_meta.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:just_audio/just_audio.dart';
 
 class OpenDrive with ChangeNotifier {
   //variables
@@ -223,4 +224,111 @@ class OpenDrive with ChangeNotifier {
     });
     return id;
   }
+
+  // player methods
+  PlayerState _playerState = PlayerState.notPlaying;
+  List<Reference> _playerQueue = [];
+  int _playerIndex = 0;
+  PlayerFileType? _playerFileType;
+  var _player;
+
+  PlayerState get playerState => _playerState;
+  List<Reference> get playerQueue => _playerQueue;
+  int get playerIndex => _playerIndex;
+  PlayerFileType? get playerFileType => _playerFileType;
+
+  set playerState(PlayerState state) {
+    _playerState = state;
+    notifyListeners();
+  }
+
+  set playerIndex(int value) {
+    _playerIndex = value;
+    notifyListeners();
+  }
+
+  set playerFileType(PlayerFileType? value) {
+    _playerFileType = value;
+    notifyListeners();
+  }
+
+  void resumePlaying() async {
+    if (_player != null) {
+      _playerState = PlayerState.playing;
+      notifyListeners();
+      await (_player! as AudioPlayer).play();
+    }
+  }
+
+  void startPlaying(List<Reference> refs, index) async {
+    if (_player != null) {
+      _player.stop();
+    }
+    if (refs.isEmpty) {
+      return;
+    }
+    _playerQueue = refs;
+    _playerIndex = index;
+
+    _playerState = PlayerState.loading;
+
+    await determinePlayerWithtFileType(
+        playerHandleFileType(refs[index].fullPath, refs[index]), refs[index]);
+
+    notifyListeners();
+  }
+
+  pausePlaying() {
+    (_player as AudioPlayer).pause();
+    _playerState = PlayerState.paused;
+    notifyListeners();
+  }
+
+  determinePlayerWithtFileType(
+    PlayerFileType type,
+    Reference ref,
+  ) async {
+    if (type == PlayerFileType.audio) {
+      _player = AudioPlayer();
+      // Create a player
+
+      final duration = await _player.setUrl(// Load a URL
+          await ref.getDownloadURL()); // Schemes: (https: | file: | asset: )
+      _playerState = PlayerState.playing;
+      notifyListeners();
+      await compute(_player.play(), (e) {
+        _playerState = PlayerState.stopped;
+        notifyListeners();
+      });
+      _playerState = PlayerState.playing;
+      notifyListeners();
+    } else if (type == PlayerFileType.video) {
+    } else if (type == PlayerFileType.image) {}
+
+    notifyListeners();
+  }
+
+  playerHandleFileType(
+    String name,
+    Reference ref,
+  ) {
+    if (name.endsWith(".mp3")) {
+      return PlayerFileType.audio;
+    } else if (name.endsWith(".mp4")) {
+      return PlayerFileType.video;
+    } else if (name.endsWith(".jpg") || name.endsWith(".png")) {
+      return PlayerFileType.image;
+    } else {
+      return PlayerFileType.unknown;
+    }
+  }
+
+  // music player  methods
+
+  //video player  methods
+
 }
+
+enum PlayerFileType { audio, video, image, unknown }
+
+enum PlayerState { playing, paused, stopped, loading, notPlaying }

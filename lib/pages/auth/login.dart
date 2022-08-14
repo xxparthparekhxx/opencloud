@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:opencloud/pages/project_control/list_of_user_projects.dart';
+import 'package:opencloud/pages/project_control/widgets/nav_area.dart';
 import 'package:opencloud/providers/openprovider.dart';
 import 'package:provider/provider.dart';
 
@@ -26,41 +26,27 @@ class _AuthDesiderState extends State<AuthDesider> {
     super.initState();
   }
 
+  bool inited = false;
+
+  Future<void> login(context) async {
+    setState(() {
+      inited = true;
+    });
+    await Provider.of<OpenDrive>(context, listen: false).login(
+        email:
+            "${Provider.of<OpenDrive>(context).Baseapp!.options.apiKey}@opencloud.org",
+        password: Provider.of<OpenDrive>(context).Baseapp!.options.apiKey);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (Provider.of<OpenDrive>(context).user == null) {
-      return Scaffold(
-          body: Padding(
-        padding: const EdgeInsets.all(30.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(),
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-              ),
-            ),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-              ),
-            ),
-            ElevatedButton(
-              child: const Text('Login'),
-              onPressed: () {
-                Provider.of<OpenDrive>(context, listen: false).login(
-                    email: _emailController.text,
-                    password: _passwordController.text);
-              },
-            ),
-          ],
-        ),
-      ));
+      if (!inited) {
+        login(context);
+      }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     } else {
-      return const ListOfProjects();
+      return const NavArea();
     }
   }
 }
