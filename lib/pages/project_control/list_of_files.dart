@@ -11,6 +11,7 @@ import 'package:opencloud/pages/project_control/widgets/bottomnavigation.dart';
 import 'package:opencloud/pages/project_control/widgets/file_options.dart';
 import 'package:opencloud/pages/project_control/widgets/file_type.dart';
 import 'package:opencloud/providers/openprovider.dart';
+import 'package:opencloud/providers/player_provider.dart';
 import 'package:provider/provider.dart';
 
 class ListOFProjectFilesData {
@@ -283,12 +284,13 @@ class _ListFilesState extends State<ListFiles> {
                                 onTap: multiSelecting
                                     ? () => select(sel, ele)
                                     : () {
-                                        if (["mp3", "mp4"].contains(ele.fullPath
+                                        if (["mp3", "opus", "mp4"].contains(ele
+                                            .fullPath
                                             .split("/")
                                             .last
                                             .split(".")
                                             .last)) {
-                                          Provider.of<OpenDrive>(context,
+                                          Provider.of<PlayerProvider>(context,
                                                   listen: false)
                                               .startPlaying(
                                                   widget.listResult.items,
@@ -351,7 +353,7 @@ class _ListFilesState extends State<ListFiles> {
                         ),
                       ],
                     ),
-                    if (Provider.of<OpenDrive>(context).playerState !=
+                    if (Provider.of<PlayerProvider>(context).playerState !=
                         PlayerState.notPlaying)
                       const SizedBox(
                         height: 55,
@@ -359,22 +361,39 @@ class _ListFilesState extends State<ListFiles> {
                   ],
                 ),
         ),
-        if (Provider.of<OpenDrive>(context).playerState !=
+        if (Provider.of<PlayerProvider>(context).playerState !=
             PlayerState.notPlaying)
           Miniplayer(
             minHeight: 50,
+            onDismissed: () {
+              Provider.of<PlayerProvider>(context, listen: false).stopPlaying();
+            },
             maxHeight: MediaQuery.of(context).size.height,
             builder: (height, percentage) {
               if (percentage > 0.2) {
-                return const Player(miniPlayer: false);
+                return Player(
+                  miniPlayer: false,
+                  setMiniPlayer: setmini,
+                );
               } else {
-                return const Player(miniPlayer: true);
+                return Player(
+                  miniPlayer: true,
+                  setMiniPlayer: setmini,
+                );
                 //return Text('mini');
               }
             },
           )
       ],
     );
+  }
+
+  bool mini = true;
+
+  setmini(bool e) {
+    setState(() {
+      mini = e;
+    });
   }
 }
 

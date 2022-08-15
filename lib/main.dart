@@ -7,6 +7,7 @@ import 'package:opencloud/pages/project_control/uploads.dart';
 import 'package:opencloud/pages/settings/settings.dart';
 import 'package:opencloud/pages/welcome/splash_screen.dart';
 import 'package:opencloud/providers/openprovider.dart';
+import 'package:opencloud/providers/player_provider.dart';
 import 'package:provider/provider.dart';
 
 void main() => runApp(const MyApp());
@@ -16,9 +17,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      lazy: false,
-      create: (context) => OpenDrive(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          lazy: false,
+          create: (context) => OpenDrive(),
+        ),
+        ChangeNotifierProvider(
+          lazy: false,
+          create: (context) => PlayerProvider(),
+        ),
+      ],
       child: const App(),
     );
   }
