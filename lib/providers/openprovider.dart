@@ -1,14 +1,4 @@
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/foundation.dart';
-import 'package:opencloud/models/options.dart';
-import 'package:opencloud/models/storage_meta.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher_string.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class OpenDrive with ChangeNotifier {
   //variables

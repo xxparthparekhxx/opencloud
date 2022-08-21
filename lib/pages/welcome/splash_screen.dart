@@ -1,11 +1,4 @@
-import 'dart:async';
-
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
-import 'package:opencloud/pages/auth/login.dart';
-import 'package:opencloud/pages/project_control/add_project.dart';
-import 'package:opencloud/providers/openprovider.dart';
-import 'package:provider/provider.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({

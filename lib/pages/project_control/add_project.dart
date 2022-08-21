@@ -1,9 +1,4 @@
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
-import 'package:opencloud/providers/openprovider.dart';
-import 'package:provider/provider.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class AddProject extends StatefulWidget {
   final bool isInital;

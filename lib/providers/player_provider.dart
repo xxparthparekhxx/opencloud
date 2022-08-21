@@ -1,28 +1,26 @@
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:video_player/video_player.dart';
+import 'package:opencloud/utils/importer.dart';
 
 enum PlayerFileType { audio, video, image, unknown }
 
-enum PlayerState { playing, paused, stopped, loading, notPlaying }
+enum PlayerStates { playing, paused, stopped, loading, notPlaying }
 
 class PlayerProvider with ChangeNotifier {
   // player methods
-  PlayerState _playerState = PlayerState.notPlaying;
+  PlayerStates _playerState = PlayerStates.notPlaying;
   List<Reference> _playerQueue = [];
   int _playerIndex = 0;
   PlayerFileType? _playerFileType;
   var _player;
 
-  PlayerState get playerState => _playerState;
+  PlayerStates get playerState => _playerState;
   List<Reference> get playerQueue => _playerQueue;
   int get playerIndex => _playerIndex;
   PlayerFileType? get playerFileType => _playerFileType;
   get player => _player;
 
-  set playerState(PlayerState state) {
+  Future? currentPlayingFuture;
+
+  set playerState(PlayerStates state) {
     _playerState = state;
     notifyListeners();
   }
@@ -39,22 +37,23 @@ class PlayerProvider with ChangeNotifier {
 
   void resumePlaying() async {
     if (_player != null) {
-      _playerState = PlayerState.playing;
+      _playerState = PlayerStates.playing;
       notifyListeners();
-      await (_player! as AudioPlayer).play();
+      await _player!.play();
     }
   }
 
   void stopPlaying() {
+    _playerState = PlayerStates.notPlaying;
+    currentPlayingFuture = null;
+    _player = null;
+    _playerFileType = null;
+    _playerIndex = 0;
+    _playerQueue = [];
     if (_player != null) {
-      _player!.dispose();
-      _playerState = PlayerState.notPlaying;
-      _player = null;
-      _playerFileType = null;
-      _playerIndex = 0;
-      _playerQueue = [];
-      notifyListeners();
+      _player?.dispose();
     }
+    notifyListeners();
   }
 
   void startPlaying(List<Reference> refs, index) async {
@@ -66,18 +65,49 @@ class PlayerProvider with ChangeNotifier {
     }
     _playerQueue = refs;
     _playerIndex = index;
+    notifyListeners();
 
-    _playerState = PlayerState.loading;
+    for (_playerIndex; _playerIndex < refs.length; _playerIndex++) {
+      _playerState = PlayerStates.loading;
+      currentPlayingFuture = determinePlayerWithtFileType(
+          checkFileType(refs[_playerIndex].fullPath, refs[_playerIndex]),
+          refs[_playerIndex]);
 
-    await determinePlayerWithtFileType(
-        checkFileType(refs[index].fullPath, refs[index]), refs[index]);
+      await currentPlayingFuture;
+
+      await _player?.dispose();
+      _player = null;
+      notifyListeners();
+    }
+    notifyListeners();
+  }
+
+  skipToNext() {
+    currentPlayingFuture = null;
+    if (_player != null) {
+      _player?.dispose();
+    }
+    _player = null;
+    _playerState = PlayerStates.stopped;
+    notifyListeners();
+  }
+
+  skipToPrevious() {
+    _playerIndex -= 2;
+    currentPlayingFuture = null;
+
+    if (_player != null) {
+      _player?.dispose();
+    }
+    _player = null;
+    _playerState = PlayerStates.stopped;
 
     notifyListeners();
   }
 
   pausePlaying() {
-    (_player as AudioPlayer).pause();
-    _playerState = PlayerState.paused;
+    _player.pause();
+    _playerState = PlayerStates.paused;
     notifyListeners();
   }
 
@@ -101,28 +131,42 @@ class PlayerProvider with ChangeNotifier {
   }
 
   Future<void> videoPlayer(Reference ref) async {
+    _playerState = PlayerStates.loading;
     _player = VideoPlayerController.network(
       await ref.getDownloadURL(),
     );
-    (_player as VideoPlayerController).initialize().then((_) {
-      _player.play();
-      _playerState = PlayerState.playing;
-      notifyListeners();
-    });
+    notifyListeners();
+
+    var p = _player as VideoPlayerController;
+    await p.initialize();
+    await p.play();
+    _playerState = PlayerStates.playing;
+    while (p.value.position < p.value.duration &&
+        (_playerState != PlayerStates.stopped &&
+            _playerState != PlayerStates.notPlaying)) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    _playerState = PlayerStates.stopped;
+    notifyListeners();
   }
 
   Future<void> audioPlayer(Reference ref) async {
     _player = AudioPlayer();
     // Create a player
-
+    _playerState = PlayerStates.playing;
+    notifyListeners();
     final duration = await _player.setUrl(// Load a URL
         await ref.getDownloadURL()); // Schemes: (https: | file: | asset: )
-    _playerState = PlayerState.playing;
+
+    await _player.play();
+    var p = _player as AudioPlayer;
+    while (p.position < duration &&
+        (_playerState != PlayerStates.stopped &&
+            _playerState != PlayerStates.notPlaying)) {
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    _playerState = PlayerStates.stopped;
     notifyListeners();
-    await compute(_player.play(), (e) {
-      _playerState = PlayerState.stopped;
-      notifyListeners();
-    });
   }
 
   checkFileType(

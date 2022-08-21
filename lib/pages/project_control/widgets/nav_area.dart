@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:opencloud/pages/project_control/list_of_user_projects.dart';
-import 'package:opencloud/pages/project_control/uploads.dart';
-import 'package:opencloud/pages/project_control/widgets/bottomnavigation.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class NavArea extends StatefulWidget {
   const NavArea({Key? key}) : super(key: key);

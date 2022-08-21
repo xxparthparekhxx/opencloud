@@ -1,9 +1,4 @@
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:opencloud/providers/openprovider.dart';
-import 'package:provider/provider.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class FileOptions extends StatelessWidget {
   const FileOptions({

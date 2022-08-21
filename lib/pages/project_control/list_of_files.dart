@@ -1,18 +1,4 @@
-import 'dart:async';
-
-import 'package:file_picker/file_picker.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:flutter/material.dart';
-import 'package:miniplayer/miniplayer.dart';
-import 'package:opencloud/pages/player/player.dart';
-import 'package:opencloud/pages/project_control/uploads.dart';
-import 'package:opencloud/pages/project_control/widgets/bottomnavigation.dart';
-import 'package:opencloud/pages/project_control/widgets/file_options.dart';
-import 'package:opencloud/pages/project_control/widgets/file_type.dart';
-import 'package:opencloud/providers/openprovider.dart';
-import 'package:opencloud/providers/player_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:opencloud/utils/importer.dart';
 
 class ListOFProjectFilesData {
   final FirebaseApp app;
@@ -35,7 +21,6 @@ class _ListOFProjectFilesState extends State<ListOFProjectFiles> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     Timer(Duration.zero, () async {
       await reload();
@@ -116,6 +101,84 @@ class ListFiles extends StatefulWidget {
 class _ListFilesState extends State<ListFiles> {
   bool multiSelecting = false;
   List<Reference> selected = [];
+  MiniplayerController controller = MiniplayerController();
+
+  Widget folderTile(ele) {
+    bool sel = selected.contains(ele);
+    return ListTile(
+      leading: sel
+          ? const Icon(
+              Icons.verified,
+              color: Colors.blue,
+            )
+          : const Icon(Icons.folder_open_sharp),
+      title: Text(ele.name),
+      selected: sel,
+      selectedColor: Colors.blue,
+      onLongPress: () => startMultiSelect(ele),
+      onTap: multiSelecting
+          ? () => select(sel, ele)
+          : () {
+              Navigator.of(context).pushNamed(ListOFProjectFiles.routeName,
+                  arguments: ListOFProjectFilesData(widget.app, ele.fullPath));
+            },
+    );
+  }
+
+  fileTile(Reference ele) {
+    bool sel = selected.contains(ele);
+    return ListTile(
+      leading: sel
+          ? const Icon(
+              Icons.verified,
+              color: Colors.blue,
+            )
+          : FileTypeIcon(extension: ele.name.split(".").last),
+      title: Text(ele.name),
+      onTap: multiSelecting
+          ? () => select(sel, ele)
+          : () {
+              if (["mp3", "opus", "mp4"]
+                  .contains(ele.fullPath.split("/").last.split(".").last)) {
+                Provider.of<PlayerProvider>(context, listen: false)
+                    .startPlaying(widget.listResult.items,
+                        widget.listResult.items.indexOf(ele));
+              }
+            },
+      selected: sel,
+      selectedColor: Colors.blue,
+      onLongPress: () => startMultiSelect(ele),
+      trailing: IconButton(
+        onPressed: () async {
+          showModalBottomSheet(
+              context: context,
+              builder: (c) {
+                return FileOptions(
+                  ele: ele,
+                  app: widget.app,
+                  reload: widget.reload,
+                );
+              });
+        },
+        icon: const Icon(Icons.more_vert),
+      ),
+    );
+  }
+
+  uploadFile() async {
+    FilePickerResult? re = await FilePicker.platform.pickFiles(
+      allowCompression: false,
+      allowMultiple: true,
+    );
+    if (re != null) {
+      List<PlatformFile> files = re.files;
+      widget.addToParent(await Provider.of<OpenDrive>(context, listen: false)
+          .uploadFileToProject(
+              app: widget.app,
+              uploadpath: widget.path,
+              paths: files.map((e) => e.path!).toList()));
+    }
+  }
 
   startMultiSelect(ele) {
     //if not multiSelecting then start multiSelecting
@@ -243,80 +306,13 @@ class _ListFilesState extends State<ListFiles> {
               Expanded(
                 child: ListView(
                   children: [
-                    for (var ele in widget.listResult.prefixes)
-                      (ele) {
-                        bool sel = selected.contains(ele);
-                        return ListTile(
-                          leading: sel
-                              ? const Icon(
-                                  Icons.verified,
-                                  color: Colors.blue,
-                                )
-                              : const Icon(Icons.folder_open_sharp),
-                          title: Text(ele.name),
-                          selected: sel,
-                          selectedColor: Colors.blue,
-                          onLongPress: () => startMultiSelect(ele),
-                          onTap: multiSelecting
-                              ? () => select(sel, ele)
-                              : () {
-                                  Navigator.of(context).pushNamed(
-                                      ListOFProjectFiles.routeName,
-                                      arguments: ListOFProjectFilesData(
-                                          widget.app, ele.fullPath));
-                                },
-                        );
-                      }(ele),
+                    //folders
+                    for (var ele in widget.listResult.prefixes) folderTile(ele),
+                    //files
                     for (Reference ele in widget.listResult.items)
                       ele.fullPath.split("/").last == "NEWFILEPLACEHOLDER.txt"
                           ? const SizedBox.shrink()
-                          : (Reference ele) {
-                              bool sel = selected.contains(ele);
-                              return ListTile(
-                                leading: sel
-                                    ? const Icon(
-                                        Icons.verified,
-                                        color: Colors.blue,
-                                      )
-                                    : FileTypeIcon(
-                                        extension: ele.name.split(".").last),
-                                title: Text(ele.name),
-                                onTap: multiSelecting
-                                    ? () => select(sel, ele)
-                                    : () {
-                                        if (["mp3", "opus", "mp4"].contains(ele
-                                            .fullPath
-                                            .split("/")
-                                            .last
-                                            .split(".")
-                                            .last)) {
-                                          Provider.of<PlayerProvider>(context,
-                                                  listen: false)
-                                              .startPlaying(
-                                                  widget.listResult.items,
-                                                  widget.listResult.items
-                                                      .indexOf(ele));
-                                        }
-                                      },
-                                selected: sel,
-                                selectedColor: Colors.blue,
-                                onLongPress: () => startMultiSelect(ele),
-                                trailing: IconButton(
-                                  onPressed: () async {
-                                    showModalBottomSheet(
-                                        context: context,
-                                        builder: (c) {
-                                          return FileOptions(
-                                            ele: ele,
-                                            app: widget.app,
-                                            reload: widget.reload,
-                                          );
-                                        });
-                                  },
-                                  icon: const Icon(Icons.more_vert),
-                                ),
-                              );
-                            }(ele)
+                          : fileTile(ele)
                   ],
                 ),
               ),
@@ -331,30 +327,12 @@ class _ListFilesState extends State<ListFiles> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         FloatingActionButton(
-                          child: const Icon(Icons.upload_file),
-                          onPressed: () async {
-                            FilePickerResult? re =
-                                await FilePicker.platform.pickFiles(
-                              allowCompression: false,
-                              allowMultiple: true,
-                            );
-                            if (re != null) {
-                              List<PlatformFile> files = re.files;
-                              widget.addToParent(await Provider.of<OpenDrive>(
-                                      context,
-                                      listen: false)
-                                  .uploadFileToProject(
-                                      app: widget.app,
-                                      uploadpath: widget.path,
-                                      paths:
-                                          files.map((e) => e.path!).toList()));
-                            }
-                          },
-                        ),
+                            child: const Icon(Icons.upload_file),
+                            onPressed: uploadFile)
                       ],
                     ),
                     if (Provider.of<PlayerProvider>(context).playerState !=
-                        PlayerState.notPlaying)
+                        PlayerStates.notPlaying)
                       const SizedBox(
                         height: 55,
                       )
@@ -362,7 +340,7 @@ class _ListFilesState extends State<ListFiles> {
                 ),
         ),
         if (Provider.of<PlayerProvider>(context).playerState !=
-            PlayerState.notPlaying)
+            PlayerStates.notPlaying)
           Miniplayer(
             minHeight: 50,
             onDismissed: () {
@@ -370,79 +348,18 @@ class _ListFilesState extends State<ListFiles> {
             },
             maxHeight: MediaQuery.of(context).size.height,
             builder: (height, percentage) {
-              if (percentage > 0.2) {
-                return Player(
-                  miniPlayer: false,
-                  setMiniPlayer: setmini,
-                );
-              } else {
-                return Player(
-                  miniPlayer: true,
-                  setMiniPlayer: setmini,
-                );
-                //return Text('mini');
-              }
+              return Player(
+                miniPlayer: percentage > 0.2 ? false : true,
+                setMiniPlayer: setmini,
+              );
             },
           )
       ],
     );
   }
 
-  bool mini = true;
-
   setmini(bool e) {
-    setState(() {
-      mini = e;
-    });
-  }
-}
-
-class NewFileAlertDialog extends StatefulWidget {
-  const NewFileAlertDialog({
-    Key? key,
-    required this.widget,
-  }) : super(key: key);
-
-  final ListFiles widget;
-
-  @override
-  State<NewFileAlertDialog> createState() => _NewFileAlertDialogState();
-}
-
-class _NewFileAlertDialogState extends State<NewFileAlertDialog> {
-  String folderName = "";
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text("Create Folder"),
-      content: TextField(
-        onChanged: (value) {
-          folderName = value;
-        },
-        decoration: const InputDecoration(
-            labelText: "Folder Name", border: OutlineInputBorder()),
-      ),
-      actions: [
-        ElevatedButton(
-          child: const Text("Cancel"),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        ElevatedButton(
-          child: const Text("Create"),
-          onPressed: () async {
-            if (folderName.isNotEmpty) {
-              await Provider.of<OpenDrive>(context, listen: false).createFolder(
-                  path: widget.widget.path,
-                  name: folderName,
-                  proj: widget.widget.app);
-            }
-            await widget.widget.reload();
-            Navigator.of(context).pop();
-          },
-        ),
-      ],
-    );
+    print("nigger >>${e}");
+    controller.animateToHeight(state: e ? PanelState.MAX : PanelState.MIN);
   }
 }
