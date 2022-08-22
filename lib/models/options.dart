@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 
 FirebaseOptions FBOPSfromJson(String json) {
-  print(json);
   Map<String, dynamic> data = jsonDecode(json);
   var client = (data["client"]! as List);
 
@@ -15,8 +14,3 @@ FirebaseOptions FBOPSfromJson(String json) {
     storageBucket: (data['project_info']! as Map)['storage_bucket'] as String,
   );
 }
-
-// class Options {
-  // Map<String, String> project_info;
-  // List<Map<String ,>> client;
-// }
