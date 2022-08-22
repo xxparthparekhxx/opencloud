@@ -24,7 +24,7 @@ Just Upload your config for your firebase project and you have your own cloud st
 - Public Urls for all the files on demand (Make it accessible to anyone with the link)
 
 ## Roadmap 🚀
-- [x] Unlimited upload upto 5gb 
+- [x] Unlimited upload upto 5gb ( per project )
 - [ ] Making a website for the app
 - [ ] Convering all the Projects into a Single Volume of storage so that you can download a Single file bigger then one gb.
 - [ ] Sharing Files with other users 
