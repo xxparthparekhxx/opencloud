@@ -2,7 +2,6 @@ import 'package:opencloud/utils/importer.dart';
 
 class OpenDrive with ChangeNotifier {
   //variables
-
   SharedPreferences? _prefs;
   FirebaseApp? _Baseapp;
   List<FirebaseApp> Projects = [];
@@ -27,11 +26,9 @@ class OpenDrive with ChangeNotifier {
       notifyListeners();
 
       // set UserListner
-
       FirebaseAuth.instanceFor(app: Baseapp!)
           .authStateChanges()
           .listen((event) {
-        print(event);
         _user = event;
         notifyListeners();
       });
@@ -41,7 +38,6 @@ class OpenDrive with ChangeNotifier {
             password: _prefs!.getString("password")!);
         await fetchAllProjectsOfCurrentUser();
       }
-
       notifyListeners();
     }
   }
