@@ -56,14 +56,14 @@ class OpenDrive with ChangeNotifier {
         .docs;
 
     for (var ele in docs) {
-      Projects.add(await Firebase.initializeApp(
-          name: ele.id, options: FBOPSfromJson(ele.data()["data"] as String)));
+      FirebaseOptions ops = FBOPSfromJson(ele.data()["data"] as String);
+      // checking if the project already exists
+      if (Projects.any(
+          (element) => element.options.projectId == ops.projectId)) {
+        continue;
+      }
+      Projects.add(await Firebase.initializeApp(name: ele.id, options: ops));
     }
-    // for (doc.) {
-
-    // Projects.add(
-    //     await Firebase.initializeApp(options: FBOPSfromJson(doc['data'])));
-    // }
 
     notifyListeners();
   }
