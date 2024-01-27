@@ -45,20 +45,21 @@ class PlayerProvider with ChangeNotifier {
 
   void stopPlaying() {
     _playerState = PlayerStates.notPlaying;
+    _player?.dispose();
+
     currentPlayingFuture = null;
     _player = null;
     _playerFileType = null;
     _playerIndex = 0;
     _playerQueue = [];
-    if (_player != null) {
-      _player?.dispose();
-    }
+    if (_player != null) {}
     notifyListeners();
   }
 
   void startPlaying(List<Reference> refs, index) async {
     if (_player != null) {
       _player.dispose();
+      _player = null;
     }
     if (refs.isEmpty) {
       return;
@@ -67,18 +68,17 @@ class PlayerProvider with ChangeNotifier {
     _playerIndex = index;
     notifyListeners();
 
-    for (_playerIndex; _playerIndex < refs.length; _playerIndex++) {
-      _playerState = PlayerStates.loading;
-      currentPlayingFuture = determinePlayerWithtFileType(
-          checkFileType(refs[_playerIndex].fullPath, refs[_playerIndex]),
-          refs[_playerIndex]);
+    _playerState = PlayerStates.loading;
+    currentPlayingFuture = determinePlayerWithtFileType(
+        checkFileType(refs[_playerIndex].fullPath, refs[_playerIndex]),
+        refs[_playerIndex]);
 
-      await currentPlayingFuture;
+    await currentPlayingFuture;
 
-      await _player?.dispose();
-      _player = null;
-      notifyListeners();
-    }
+    await _player?.dispose();
+    _player = null;
+    _playerState = PlayerStates.notPlaying;
+
     notifyListeners();
   }
 
@@ -132,8 +132,8 @@ class PlayerProvider with ChangeNotifier {
 
   Future<void> videoPlayer(Reference ref) async {
     _playerState = PlayerStates.loading;
-    _player = VideoPlayerController.network(
-      await ref.getDownloadURL(),
+    _player = VideoPlayerController.networkUrl(
+      Uri.parse(await ref.getDownloadURL()),
     );
     notifyListeners();
 
