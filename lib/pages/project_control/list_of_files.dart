@@ -138,7 +138,7 @@ class _ListFilesState extends State<ListFiles> {
       onTap: multiSelecting
           ? () => select(sel, ele)
           : () {
-              if (["mp3", "opus", "mp4"]
+              if (["mp3", "opus", "mp4", "jpg"]
                   .contains(ele.fullPath.split("/").last.split(".").last)) {
                 Provider.of<PlayerProvider>(context, listen: false)
                     .startPlaying(widget.listResult.items,
@@ -343,9 +343,8 @@ class _ListFilesState extends State<ListFiles> {
             PlayerStates.notPlaying)
           Miniplayer(
             minHeight: 50,
-            onDismissed: () {
-              Provider.of<PlayerProvider>(context, listen: false).stopPlaying();
-            },
+            onDismissed:
+                Provider.of<PlayerProvider>(context, listen: false).stopPlaying,
             maxHeight: MediaQuery.of(context).size.height,
             builder: (height, percentage) {
               return Player(

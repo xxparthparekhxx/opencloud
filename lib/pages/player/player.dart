@@ -15,17 +15,19 @@ class Player extends StatelessWidget {
       return const miniAudioPlayer();
     } else if (miniPlayer && p.player.runtimeType == VideoPlayerController) {
       return const miniVideoPlayer();
-    }
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.8,
-          child: p.player.runtimeType == AudioPlayer
-              ? AudioPlayerPage(setMiniPlayer: setMiniPlayer)
-              : VideoPlayerPage(setMiniPlayer: setMiniPlayer),
+    } else if (p.player.runtimeType == AudioPlayer ||
+        p.player.runtimeType == VideoPlayerController) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: p.player.runtimeType == AudioPlayer
+                ? AudioPlayerPage(setMiniPlayer: setMiniPlayer)
+                : VideoPlayerPage(setMiniPlayer: setMiniPlayer),
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return p.player;
   }
 }

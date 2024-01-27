@@ -45,7 +45,9 @@ class PlayerProvider with ChangeNotifier {
 
   void stopPlaying() {
     _playerState = PlayerStates.notPlaying;
-    _player?.dispose();
+    if (_player.runtimeType != Image) {
+      _player?.dispose();
+    }
 
     currentPlayingFuture = null;
     _player = null;
@@ -57,6 +59,7 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void startPlaying(List<Reference> refs, index) async {
+    print(index);
     if (_player != null) {
       _player.dispose();
       _player = null;
@@ -74,10 +77,11 @@ class PlayerProvider with ChangeNotifier {
         refs[_playerIndex]);
 
     await currentPlayingFuture;
-
-    await _player?.dispose();
-    _player = null;
-    _playerState = PlayerStates.notPlaying;
+    if (_player.runtimeType != Image) {
+      await _player?.dispose();
+      _player = null;
+      _playerState = PlayerStates.notPlaying;
+    }
 
     notifyListeners();
   }
@@ -115,14 +119,20 @@ class PlayerProvider with ChangeNotifier {
     PlayerFileType type,
     Reference ref,
   ) async {
+    print(" image le lode");
+
     if (type == PlayerFileType.audio) {
       await audioPlayer(ref);
     } else if (type == PlayerFileType.video) {
       await videoPlayer(ref);
     } else if (type == PlayerFileType.image) {
+      _playerState = PlayerStates.loading;
+      notifyListeners();
+
       _player = Image.network(
         await ref.getDownloadURL(),
       );
+      _playerState = PlayerStates.playing;
     } else {
       _player = null;
     }
@@ -173,6 +183,7 @@ class PlayerProvider with ChangeNotifier {
     String name,
     Reference ref,
   ) {
+    print(name);
     if (name.endsWith(".mp3") || name.endsWith(".opus")) {
       return PlayerFileType.audio;
     } else if (name.endsWith(".mp4")) {

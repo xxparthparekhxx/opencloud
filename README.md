@@ -13,15 +13,17 @@ Just Upload your config for your firebase project and you have your own cloud st
 ## How to use it? 🤔
 
 1. Create a firebase project
-2. Enable FireStore for the first project It will Store all 3. your Configurations for other firebase projects.
-4. Enable Email/Password Authentication for the first project.
-5. Enable Storage for all projects.
-6. Register app with firebase and download google-services.json file for all projects.
-7. Add all the google-services.json files to the app.
+2. Enable FireStore for the first project It will Store all the your Configurations for other firebase projects.
+3. Enable Email/Password Authentication for the first project.
+4. Enable Storage for all projects.
+5. Register app with firebase and download google-services.json file for all projects.
+6. Add all the google-services.json files to the app.
 
 ## features 📋
 - Unlimited Cloud Storage
 - Public Urls for all the files on demand (Make it accessible to anyone with the link)
+
+## Download [Here](https://github.com/xxparthparekhxx/opencloud/blob/master/app-release.apk)
 
 ## Roadmap 🚀
 - [x] Unlimited upload upto 5gb ( per project )
