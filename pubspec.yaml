@@ -1,5 +1,5 @@
 name: opencloud
-description: A unlimited Cloud Storage App. Powered By Firebase Free Tier. 
+description: A multi-project Cloud Storage App. Powered By Firebase Free Tier. 
 
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -27,9 +27,7 @@ dependencies:
   url_launcher: ^6.1.5
   just_audio: ^0.9.28
   video_player: ^2.4.6
-  syncfusion_flutter_pdfviewer: ^20.2.43-beta
   miniplayer: ^1.0.1
-  flutter_media_metadata: ^1.0.0+1
 
 dev_dependencies:
   flutter_test:
