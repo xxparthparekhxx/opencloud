@@ -1,4 +1,4 @@
-package com.example.opencloud
+package com.xxparthparekhxx.opencloud
 
 import io.flutter.embedding.android.FlutterActivity
 
