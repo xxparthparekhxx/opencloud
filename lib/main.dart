@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:opencloud/pages/auth/login.dart';
 import 'package:opencloud/pages/project_control/add_project.dart';
 import 'package:opencloud/pages/project_control/list_of_files.dart';
-import 'package:opencloud/pages/project_control/list_of_user_projects.dart';
 import 'package:opencloud/pages/project_control/uploads.dart';
 import 'package:opencloud/pages/settings/settings.dart';
 import 'package:opencloud/pages/welcome/splash_screen.dart';
@@ -53,9 +51,7 @@ class App extends StatelessWidget {
         title: 'Open Cloud',
         home: const SplashScreen(),
         routes: {
-          AuthDesider.routeName: (context) => const AuthDesider(),
           AddProject.routeName: (context) => const AddProject(),
-          ListOfProjects.routeName: (context) => const ListOfProjects(),
           Settings.routeName: (context) => const Settings(),
           Uploads.routeName: (context) => const Uploads(),
         },
