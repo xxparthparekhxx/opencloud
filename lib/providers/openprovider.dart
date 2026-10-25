@@ -1,147 +1,141 @@
-import 'package:opencloud/utils/importer.dart';
+import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
+import 'package:opencloud/models/app_constants.dart';
+import 'package:opencloud/models/options.dart';
+import 'package:opencloud/models/storage_meta.dart';
+import 'package:opencloud/services/auth_service.dart';
+import 'package:opencloud/services/project_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+
+/// Facade over the auth, project-registry and storage services.
+///
+/// `OpenDrive` remains a `ChangeNotifier` so existing callers (UI pages) keep
+/// working, but it now delegates each concern to a dedicated service class
+/// under `lib/services/`.
 class OpenDrive with ChangeNotifier {
-  //variables
+  // variables
   SharedPreferences? _prefs;
-  FirebaseApp? _Baseapp;
-  List<FirebaseApp> Projects = [];
+  FirebaseApp? _baseApp;
+  final List<FirebaseApp> _projects = [];
   User? _user;
+  Object? _initError;
   // ignore: prefer_final_fields
   List<UploadMeta> _uploadingTasks = [];
-  final List<DownloadTask> _downloadingTasks = [];
-  // constructor
+
+  AuthService? _authService;
+  ProjectRepository? _projectRepository;
+
   OpenDrive();
 
   // Getters
-  FirebaseApp? get Baseapp => _Baseapp;
+  FirebaseApp? get baseApp => _baseApp;
+  List<FirebaseApp> get projects => _projects;
   User? get user => _user;
   List<UploadMeta> get uploadingTasks => _uploadingTasks;
+  Object? get initError => _initError;
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
-    String? config = _prefs!.getString("BaseConfig");
-    if (config != null) {
-      // initialize firebase
-      _Baseapp = await Firebase.initializeApp(options: FBOPSfromJson(config));
-      notifyListeners();
-
-      // set UserListner
-      FirebaseAuth.instanceFor(app: Baseapp!)
-          .authStateChanges()
-          .listen((event) {
-        _user = event;
+    _initError = null;
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      String? config = _prefs!.getString(kBaseConfigPrefKey);
+      if (config != null) {
+        // initialize firebase
+        _baseApp = await Firebase.initializeApp(options: fbOpsFromJson(config));
+        _authService = AuthService(app: _baseApp!);
+        _projectRepository = ProjectRepository(app: _baseApp!);
         notifyListeners();
-      });
-      if (_prefs!.getString("email") != null) {
-        FirebaseAuth.instanceFor(app: Baseapp!).signInWithEmailAndPassword(
-            email: _prefs!.getString("email")!,
-            password: _prefs!.getString("password")!);
-        await fetchAllProjectsOfCurrentUser();
+
+        // set User listener
+        _authService!.authStateChanges.listen((event) {
+          _user = event;
+          notifyListeners();
+        });
+        if (_prefs!.getString(kEmailPrefKey) != null) {
+          await _authService!.signInOrCreate(
+            email: _prefs!.getString(kEmailPrefKey)!,
+            password: _prefs!.getString(kPasswordPrefKey)!,
+          );
+          await fetchAllProjectsOfCurrentUser();
+        }
+        notifyListeners();
       }
-      notifyListeners();
+    } catch (e) {
+      _initError = e;
     }
   }
 
   Future<void> fetchAllProjectsOfCurrentUser() async {
-    if (_Baseapp == null) {
+    if (_baseApp == null) {
       throw Exception("Firebase not initialized");
     }
-    var docs = (await FirebaseFirestore.instanceFor(app: _Baseapp!)
-            .collection("projects")
-            .get())
-        .docs;
-
-    for (var ele in docs) {
-      FirebaseOptions ops = FBOPSfromJson(ele.data()["data"] as String);
-      // checking if the project already exists
-      if (Projects.any(
-          (element) => element.options.projectId == ops.projectId)) {
-        continue;
-      }
-      Projects.add(await Firebase.initializeApp(name: ele.id, options: ops));
-    }
-
+    final fetched = await _projectRepository!.fetchAllProjects();
+    _projects
+      ..clear()
+      ..addAll(fetched);
     notifyListeners();
   }
 
   Future<void> createProjectFromJson(
       {required String data, bool isInitial = false}) async {
     if (isInitial) {
-      _Baseapp = await Firebase.initializeApp(options: FBOPSfromJson(data));
+      _baseApp = await _projectRepository!.createProjectFromJson(
+        data: data,
+        isInitial: true,
+      );
+      _authService = AuthService(app: _baseApp!);
+      _projectRepository = ProjectRepository(app: _baseApp!);
       notifyListeners();
     }
-    if (_Baseapp == null && !isInitial) {
+    if (_baseApp == null && !isInitial) {
       throw Exception("Firebase not initialized");
     }
-    // check if project already exists
-    for (var doc in (await FirebaseFirestore.instanceFor(app: _Baseapp!)
-            .collection("projects")
-            .get())
-        .docs) {
-      if (FBOPSfromJson(doc.data()["data"].toString()).apiKey ==
-              FBOPSfromJson(data).apiKey &&
-          _prefs!.getString("BaseConfig") != null) {
-        throw Exception("Project already exists");
-      }
-    }
-
-    // save in Firebase
-    if (_prefs!.getString("BaseConfig") != null) {
-      int count = ((await FirebaseFirestore.instanceFor(app: _Baseapp!)
-              .collection("projects")
-              .get())
-          .docs
-          .length);
-      await FirebaseFirestore.instanceFor(app: _Baseapp!)
-          .collection("projects")
-          .doc("$count")
-          .set({"data": data});
-    }
-    // save in SharedPreferences if first project is not saved
-    print(
-        "isFirst \n\n\n\n\n\n >>>>>> ${_prefs!.getString("BaseConfig") == null} \n\n\n\n\n\n\n");
-    if (_prefs!.getString("BaseConfig") == null) {
-      print(await _prefs!.setString("BaseConfig", data));
-    }
-
+    await _projectRepository!.createProjectFromJson(data: data);
     await fetchAllProjectsOfCurrentUser();
     notifyListeners();
   }
 
+  /// Sign in with email/password, creating the account if it does not exist
+  /// (`user-not-found`). Any other auth failure is rethrown so the UI can
+  /// surface it; credentials are only persisted on success.
   Future<void> login({required String email, required String password}) async {
-    try {
-      var cred = await FirebaseAuth.instanceFor(app: _Baseapp!)
-          .signInWithEmailAndPassword(email: email, password: password);
-      _user = cred.user;
-    } catch (e) {
-      if (e.runtimeType == FirebaseAuthException) {
-        if ((e as FirebaseAuthException).code == "user-not-found") {
-          var cred = await FirebaseAuth.instanceFor(app: _Baseapp!)
-              .createUserWithEmailAndPassword(email: email, password: password);
-          _user = cred.user;
-        }
-      }
+    if (_baseApp == null) {
+      throw Exception("Firebase not initialized");
     }
-    _prefs!.setString("email", email);
-    _prefs!.setString("password", password);
+    try {
+      final cred = await _authService!.signInOrCreate(
+        email: email,
+        password: password,
+      );
+      _user = cred.user;
+    } on FirebaseAuthException {
+      rethrow;
+    }
+    await _prefs!.setString(kEmailPrefKey, email);
+    await _prefs!.setString(kPasswordPrefKey, password);
     notifyListeners();
   }
 
+  /// Deletes the Firestore project document and removes the matching app from
+  /// the local project list so the UI does not show a stale entry.
   Future<void> deleteProject(String id) async {
-    if (_Baseapp == null) {
+    if (_baseApp == null) {
       throw Exception("Firebase not initialized");
     }
-    await FirebaseFirestore.instanceFor(app: _Baseapp!)
-        .collection("projects")
-        .doc(id)
-        .delete();
-
+    await _projectRepository!.deleteProject(id);
+    _projects.removeWhere((app) => app.name == id);
     notifyListeners();
   }
 
   Future<void> logout() async {
-    await FirebaseAuth.instanceFor(app: _Baseapp!).signOut();
+    await _authService!.signOut();
     _user = null;
+    _projects.clear();
     notifyListeners();
   }
 
@@ -153,16 +147,6 @@ class OpenDrive with ChangeNotifier {
         .listAll();
   }
 
-  Future<void> uploadFile(
-      {required File file,
-      required String path,
-      required FirebaseApp proj}) async {
-    await FirebaseStorage.instanceFor(
-            app: proj, bucket: proj.options.storageBucket)
-        .ref(path)
-        .putFile(file);
-  }
-
   Future<void> downloadFile({required Reference ref}) async {
     launchUrlString(await ref.getDownloadURL(),
         mode: LaunchMode.externalApplication);
@@ -172,27 +156,41 @@ class OpenDrive with ChangeNotifier {
       {required String path,
       required String name,
       required FirebaseApp proj}) async {
-    await FirebaseStorage.instanceFor(
-            app: proj, bucket: proj.options.storageBucket)
+    final storage = FirebaseStorage.instanceFor(
+        app: proj, bucket: proj.options.storageBucket);
+    await storage
         .ref(path)
-        .child("$name/NEWFILEPLACEHOLDER.txt")
+        .child("$name/$kFolderPlaceholderFileName")
         .putData(Uint8List(0));
+  }
+
+  /// Deletes a single file at [ref].
+  Future<void> deleteFile(Reference ref) async {
+    await ref.delete();
+  }
+
+  /// Recursively deletes a folder and everything under it at [ref].
+  Future<void> deleteFolderRecursive(Reference ref) async {
+    final list = await ref.listAll();
+    for (final item in list.items) {
+      await item.delete();
+    }
+    for (final prefix in list.prefixes) {
+      await deleteFolderRecursive(prefix);
+    }
+    await ref.delete();
   }
 
   Future<List<int>> uploadFileToProject(
       {required FirebaseApp app,
       String? uploadpath,
       required List<String> paths}) async {
-    var storage = FirebaseStorage.instanceFor(
+    final storage = FirebaseStorage.instanceFor(
         app: app, bucket: app.options.storageBucket);
     List<int> ids = [];
-    List<Future> brr = [
-      for (var path in paths) uploads(storage, uploadpath, path, app)
-    ];
-    for (var element in brr) {
-      ids.add(await element);
+    for (var path in paths) {
+      ids.add(await uploads(storage, uploadpath, path, app));
     }
-
     return ids;
   }
 

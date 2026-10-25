@@ -12,39 +12,53 @@ class AuthDesider extends StatefulWidget {
 }
 
 class _AuthDesiderState extends State<AuthDesider> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  Object? _loginError;
 
   @override
   void initState() {
-    _emailController.addListener(() {
-      setState(() {});
-    });
-    _passwordController.addListener(() {
-      setState(() {});
-    });
     super.initState();
+    // Trigger the login attempt post-frame (not during build) to avoid
+    // setState-during-build and calling providers during build.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _attemptLogin());
   }
 
-  bool inited = false;
-
-  Future<void> login(context) async {
-    setState(() {
-      inited = true;
-    });
-    await Provider.of<OpenDrive>(context, listen: false).login(
-        email:
-            "${Provider.of<OpenDrive>(context).Baseapp!.options.apiKey}@opencloud.org",
-        password: Provider.of<OpenDrive>(context).Baseapp!.options.apiKey);
+  Future<void> _attemptLogin() async {
+    if (!mounted) return;
+    final openDrive = Provider.of<OpenDrive>(context, listen: false);
+    try {
+      await openDrive.login(
+        email: "${openDrive.baseApp!.options.apiKey}@opencloud.org",
+        password: openDrive.baseApp!.options.apiKey,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loginError = e;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (Provider.of<OpenDrive>(context).user == null) {
-      if (!inited) {
-        login(context);
+    final openDrive = Provider.of<OpenDrive>(context);
+    if (openDrive.user == null) {
+      if (_loginError != null) {
+        return Scaffold(
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Login failed", style: TextStyle(fontSize: 18)),
+                const SizedBox(height: 12),
+                Text(_loginError.toString()),
+              ],
+            ),
+          ),
+        );
       }
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     } else {
       return const NavArea();
     }
