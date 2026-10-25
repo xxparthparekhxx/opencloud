@@ -1,7 +1,11 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:flutter/material.dart';
+import 'package:opencloud/providers/player_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:opencloud/pages/player/widgets/common/play_pause_button.dart';
+import 'package:opencloud/pages/player/widgets/common/skip_controls.dart';
 
-class miniAudioPlayer extends StatelessWidget {
-  const miniAudioPlayer({
+class MiniAudioPlayer extends StatelessWidget {
+  const MiniAudioPlayer({
     Key? key,
   }) : super(key: key);
 
@@ -33,26 +37,8 @@ class miniAudioPlayer extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                if (p.playerState == PlayerStates.playing)
-                  IconButton(
-                    icon: const Icon(Icons.pause),
-                    onPressed: () {
-                      p.pausePlaying();
-                    },
-                  ),
-                if (p.playerState == PlayerStates.paused)
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: () {
-                      p.resumePlaying();
-                    },
-                  ),
-                GestureDetector(
-                  child: const Icon(Icons.skip_next),
-                  onTap: () {
-                    p.skipToNext();
-                  },
-                )
+                PlayPauseButton(provider: p),
+                SkipControls(provider: p),
               ],
             ))
       ],

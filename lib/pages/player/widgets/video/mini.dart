@@ -1,74 +1,85 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:flutter/material.dart';
+import 'package:opencloud/providers/player_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
+import 'package:opencloud/pages/player/widgets/common/play_pause_button.dart';
+import 'package:opencloud/pages/player/widgets/common/skip_controls.dart';
 
-class miniVideoPlayer extends StatefulWidget {
-  const miniVideoPlayer({
+class MiniVideoPlayer extends StatefulWidget {
+  const MiniVideoPlayer({
     Key? key,
   }) : super(key: key);
 
   @override
-  State<miniVideoPlayer> createState() => _miniVideoPlayerState();
+  State<MiniVideoPlayer> createState() => _MiniVideoPlayerState();
 }
 
-class _miniVideoPlayerState extends State<miniVideoPlayer> {
+class _MiniVideoPlayerState extends State<MiniVideoPlayer> {
+  @override
+  void initState() {
+    super.initState();
+    final p = context.read<PlayerProvider>();
+    p.addListener(_onProviderChanged);
+    final active = p.player;
+    if (active is VideoActive) {
+      active.controller.addListener(_onControllerChanged);
+    }
+  }
+
+  void _onProviderChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    final p = context.read<PlayerProvider>();
+    p.removeListener(_onProviderChanged);
+    final active = p.player;
+    if (active is VideoActive) {
+      active.controller.removeListener(_onControllerChanged);
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    PlayerProvider p = Provider.of<PlayerProvider>(context);
-    p.addListener(() {
-      if (mounted) setState(() {});
-    });
+    final PlayerProvider p = Provider.of<PlayerProvider>(context);
     if (p.player == null) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
-    VideoPlayerController player = (p.player as VideoPlayerController);
-    player.addListener(() {
-      if (mounted) setState(() {});
-    });
-    return Row(
-      children: [
-        Expanded(
-            flex: 2,
-            child: Container(
-              margin: const EdgeInsets.only(right: 10),
-              decoration: const BoxDecoration(color: Colors.black),
-              child: VideoPlayer(p.player),
-            )),
-        Expanded(
-          flex: 6,
-          child: Text(p.playerQueue[p.playerIndex].fullPath.split("/").last),
-        ),
-        Expanded(
-            flex: 2,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                if (p.playerState == PlayerStates.playing)
-                  IconButton(
-                    icon: const Icon(Icons.pause),
-                    onPressed: () {
-                      p.pausePlaying();
-                    },
-                  ),
-                if (p.playerState == PlayerStates.paused)
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow),
-                    onPressed: () {
-                      p.resumePlaying();
-                    },
-                  ),
-                GestureDetector(
-                  child: const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Icon(Icons.skip_next),
-                  ),
-                  onTap: () {
-                    p.skipToNext();
-                  },
-                )
-              ],
-            ))
-      ],
-    );
+    final active = p.player;
+    if (active case VideoActive(:final controller)) {
+      return Row(
+        children: [
+          Expanded(
+              flex: 2,
+              child: Container(
+                margin: const EdgeInsets.only(right: 10),
+                decoration: const BoxDecoration(color: Colors.black),
+                child: VideoPlayer(controller),
+              )),
+          Expanded(
+            flex: 6,
+            child: Text(p.playerQueue[p.playerIndex].fullPath.split("/").last),
+          ),
+          Expanded(
+              flex: 2,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  PlayPauseButton(provider: p),
+                  SkipControls(provider: p),
+                ],
+              ))
+        ],
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

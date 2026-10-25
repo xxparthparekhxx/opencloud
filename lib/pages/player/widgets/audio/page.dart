@@ -1,4 +1,9 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:flutter/material.dart';
+import 'package:opencloud/providers/player_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:opencloud/pages/player/widgets/common/header_row.dart';
+import 'package:opencloud/pages/player/widgets/common/play_pause_button.dart';
+import 'package:opencloud/pages/player/widgets/common/skip_controls.dart';
 
 class AudioPlayerPage extends StatelessWidget {
   final Function setMiniPlayer;
@@ -20,17 +25,7 @@ class AudioPlayerPage extends StatelessWidget {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-                onPressed: () {
-                  setMiniPlayer(true);
-                },
-                icon: const Icon(Icons.keyboard_arrow_down_sharp)),
-            IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
-          ],
-        ),
+        HeaderRow(onMinimize: () => setMiniPlayer(true)),
         Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -70,7 +65,7 @@ class AudioPlayerPage extends StatelessWidget {
               child: Row(
                 children: [
                   StreamBuilder(
-                      stream: (p.player as AudioPlayer).positionStream,
+                      stream: (p.player as AudioActive).player.positionStream,
                       builder: (c, AsyncSnapshot<Duration> ss) {
                         return Text(ss.data
                             .toString()
@@ -78,35 +73,36 @@ class AudioPlayerPage extends StatelessWidget {
                       }),
                   Expanded(
                     child: StreamBuilder(
-                        stream: (p.player as AudioPlayer).positionStream,
+                        stream: (p.player as AudioActive).player.positionStream,
                         builder: (c, AsyncSnapshot<Duration> ss) {
+                          final player = (p.player as AudioActive).player;
                           return Slider(
-                            max: (p.player as AudioPlayer)
-                                .duration!
-                                .inMilliseconds
-                                .roundToDouble(),
+                            max:
+                                player.duration!.inMilliseconds.roundToDouble(),
                             min: 0.0,
-                            onChanged: (value) => {
-                              (p.player as AudioPlayer)
-                                  .seek(Duration(milliseconds: value.round()))
-                            },
+                            onChanged: (value) => player
+                                .seek(Duration(milliseconds: value.round())),
                             value: ss.data!.inMilliseconds.floorToDouble() <
-                                    (p.player as AudioPlayer)
-                                        .duration!
-                                        .inMilliseconds
+                                    player.duration!.inMilliseconds
                                         .roundToDouble()
                                 ? ss.data!.inMilliseconds.floorToDouble()
-                                : (p.player as AudioPlayer)
-                                    .duration!
-                                    .inMilliseconds
+                                : player.duration!.inMilliseconds
                                     .roundToDouble(),
                           );
                         }),
                   ),
-                  Text((p.player as AudioPlayer).duration.toString().substring(
-                      0,
-                      (p.player as AudioPlayer).duration.toString().length -
-                          7)),
+                  Text((p.player as AudioActive)
+                      .player
+                      .duration
+                      .toString()
+                      .substring(
+                          0,
+                          (p.player as AudioActive)
+                                  .player
+                                  .duration
+                                  .toString()
+                                  .length -
+                              7)),
                 ],
               ),
             ),
@@ -118,28 +114,8 @@ class AudioPlayerPage extends StatelessWidget {
                   IconButton(
                       onPressed: () {},
                       icon: const Icon(Icons.shuffle_outlined)),
-                  IconButton(
-                      onPressed: () {}, icon: const Icon(Icons.skip_previous)),
-                  if (p.playerState == PlayerStates.playing)
-                    IconButton(
-                      icon: const Icon(Icons.pause),
-                      onPressed: () {
-                        p.pausePlaying();
-                      },
-                    ),
-                  if (p.playerState == PlayerStates.paused ||
-                      p.playerState == PlayerStates.stopped)
-                    IconButton(
-                      icon: const Icon(Icons.play_arrow),
-                      onPressed: () {
-                        p.resumePlaying();
-                      },
-                    ),
-                  IconButton(
-                      onPressed: () {
-                        p.skipToNext();
-                      },
-                      icon: const Icon(Icons.skip_next)),
+                  SkipControls(provider: p),
+                  PlayPauseButton(provider: p, iconSize: 36.0),
                   IconButton(
                       onPressed: () {},
                       icon: const Icon(Icons.repeat_one_outlined)),

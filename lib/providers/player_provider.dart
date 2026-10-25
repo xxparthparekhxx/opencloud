@@ -1,8 +1,32 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:video_player/video_player.dart';
 
 enum PlayerFileType { audio, video, image, unknown }
 
 enum PlayerStates { playing, paused, stopped, loading, notPlaying }
+
+/// Typed model for the currently active playback item.
+sealed class ActivePlayer {}
+
+/// An active audio playback session.
+final class AudioActive extends ActivePlayer {
+  final AudioPlayer player;
+  AudioActive(this.player);
+}
+
+/// An active video playback session.
+final class VideoActive extends ActivePlayer {
+  final VideoPlayerController controller;
+  VideoActive(this.controller);
+}
+
+/// An image to display (resolved download URL, not a widget).
+final class ImageActive extends ActivePlayer {
+  final String url;
+  ImageActive(this.url);
+}
 
 class PlayerProvider with ChangeNotifier {
   // player methods
@@ -10,15 +34,13 @@ class PlayerProvider with ChangeNotifier {
   List<Reference> _playerQueue = [];
   int _playerIndex = 0;
   PlayerFileType? _playerFileType;
-  var _player;
+  ActivePlayer? _player;
 
   PlayerStates get playerState => _playerState;
   List<Reference> get playerQueue => _playerQueue;
   int get playerIndex => _playerIndex;
   PlayerFileType? get playerFileType => _playerFileType;
-  get player => _player;
-
-  Future? currentPlayingFuture;
+  ActivePlayer? get player => _player;
 
   set playerState(PlayerStates state) {
     _playerState = state;
@@ -36,32 +58,31 @@ class PlayerProvider with ChangeNotifier {
   }
 
   void resumePlaying() async {
-    if (_player != null) {
+    final player = _player;
+    if (player is AudioActive) {
       _playerState = PlayerStates.playing;
       notifyListeners();
-      await _player!.play();
+      await player.player.play();
+    } else if (player is VideoActive) {
+      _playerState = PlayerStates.playing;
+      notifyListeners();
+      player.controller.play();
     }
   }
 
   void stopPlaying() {
+    _player?.disposeIfSupported();
     _playerState = PlayerStates.notPlaying;
-    if (_player.runtimeType != Image) {
-      _player?.dispose();
-    }
-
-    currentPlayingFuture = null;
     _player = null;
     _playerFileType = null;
     _playerIndex = 0;
     _playerQueue = [];
-    if (_player != null) {}
     notifyListeners();
   }
 
-  void startPlaying(List<Reference> refs, index) async {
-    print(index);
+  void startPlaying(List<Reference> refs, int index) async {
     if (_player != null) {
-      _player.dispose();
+      _player?.disposeIfSupported();
       _player = null;
     }
     if (refs.isEmpty) {
@@ -72,118 +93,113 @@ class PlayerProvider with ChangeNotifier {
     notifyListeners();
 
     _playerState = PlayerStates.loading;
-    currentPlayingFuture = determinePlayerWithtFileType(
-        checkFileType(refs[_playerIndex].fullPath, refs[_playerIndex]),
-        refs[_playerIndex]);
-
-    await currentPlayingFuture;
-    if (_player.runtimeType != Image) {
-      await _player?.dispose();
-      _player = null;
-      _playerState = PlayerStates.notPlaying;
-    }
-
+    final type = _fileTypeForPath(refs[index].fullPath);
+    await _determinePlayerForFileType(type, refs[index]);
     notifyListeners();
   }
 
-  skipToNext() {
-    currentPlayingFuture = null;
-    if (_player != null) {
-      _player?.dispose();
-    }
+  void skipToNext() {
+    _player?.disposeIfSupported();
     _player = null;
-    _playerState = PlayerStates.stopped;
+    _playerIndex += 1;
+    if (_playerIndex >= _playerQueue.length) {
+      _playerState = PlayerStates.stopped;
+      notifyListeners();
+      return;
+    }
+    _playerState = PlayerStates.loading;
+    notifyListeners();
+    final type = _fileTypeForPath(
+      _playerQueue[_playerIndex].fullPath,
+    );
+    _determinePlayerForFileType(type, _playerQueue[_playerIndex]);
     notifyListeners();
   }
 
-  skipToPrevious() {
+  void skipToPrevious() {
     _playerIndex -= 2;
-    currentPlayingFuture = null;
-
-    if (_player != null) {
-      _player?.dispose();
+    if (_playerIndex < 0) {
+      _playerIndex = 0;
     }
+    _player?.disposeIfSupported();
     _player = null;
     _playerState = PlayerStates.stopped;
-
     notifyListeners();
   }
 
-  pausePlaying() {
-    _player.pause();
+  void pausePlaying() {
+    final player = _player;
+    if (player is AudioActive) {
+      player.player.pause();
+    } else if (player is VideoActive) {
+      player.controller.pause();
+    }
     _playerState = PlayerStates.paused;
     notifyListeners();
   }
 
-  determinePlayerWithtFileType(
+  Future<void> _determinePlayerForFileType(
     PlayerFileType type,
     Reference ref,
   ) async {
-    print(" image le lode");
-
     if (type == PlayerFileType.audio) {
-      await audioPlayer(ref);
+      await _audioPlayer(ref);
     } else if (type == PlayerFileType.video) {
-      await videoPlayer(ref);
+      await _videoPlayer(ref);
     } else if (type == PlayerFileType.image) {
       _playerState = PlayerStates.loading;
       notifyListeners();
-
-      _player = Image.network(
-        await ref.getDownloadURL(),
-      );
+      final url = await ref.getDownloadURL();
+      _player = ImageActive(url);
       _playerState = PlayerStates.playing;
     } else {
       _player = null;
     }
-
     notifyListeners();
   }
 
-  Future<void> videoPlayer(Reference ref) async {
+  Future<void> _videoPlayer(Reference ref) async {
     _playerState = PlayerStates.loading;
-    _player = VideoPlayerController.networkUrl(
+    final controller = VideoPlayerController.networkUrl(
       Uri.parse(await ref.getDownloadURL()),
     );
+    _player = VideoActive(controller);
     notifyListeners();
 
-    var p = _player as VideoPlayerController;
-    await p.initialize();
-    await p.play();
-    _playerState = PlayerStates.playing;
-    while (p.value.position < p.value.duration &&
-        (_playerState != PlayerStates.stopped &&
-            _playerState != PlayerStates.notPlaying)) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-    _playerState = PlayerStates.stopped;
-    notifyListeners();
-  }
-
-  Future<void> audioPlayer(Reference ref) async {
-    _player = AudioPlayer();
-    // Create a player
+    await controller.initialize();
+    await controller.play();
     _playerState = PlayerStates.playing;
     notifyListeners();
-    final duration = await _player.setUrl(// Load a URL
-        await ref.getDownloadURL()); // Schemes: (https: | file: | asset: )
 
-    await _player.play();
-    var p = _player as AudioPlayer;
-    while (p.position < duration &&
-        (_playerState != PlayerStates.stopped &&
-            _playerState != PlayerStates.notPlaying)) {
-      await Future.delayed(const Duration(milliseconds: 500));
-    }
-    _playerState = PlayerStates.stopped;
-    notifyListeners();
+    controller.addListener(() {
+      if (!controller.value.isPlaying &&
+          controller.value.position >= controller.value.duration &&
+          _playerState != PlayerStates.stopped &&
+          _playerState != PlayerStates.notPlaying) {
+        _playerState = PlayerStates.stopped;
+        notifyListeners();
+      }
+    });
   }
 
-  checkFileType(
-    String name,
-    Reference ref,
-  ) {
-    print(name);
+  Future<void> _audioPlayer(Reference ref) async {
+    final player = AudioPlayer();
+    _player = AudioActive(player);
+    _playerState = PlayerStates.playing;
+    notifyListeners();
+    await player.setUrl(await ref.getDownloadURL());
+    await player.play();
+    player.playerStateStream.listen((playerState) {
+      if (playerState.processingState == ProcessingState.completed &&
+          _playerState != PlayerStates.stopped &&
+          _playerState != PlayerStates.notPlaying) {
+        _playerState = PlayerStates.stopped;
+        notifyListeners();
+      }
+    });
+  }
+
+  PlayerFileType _fileTypeForPath(String name) {
     if (name.endsWith(".mp3") || name.endsWith(".opus")) {
       return PlayerFileType.audio;
     } else if (name.endsWith(".mp4")) {
@@ -194,8 +210,19 @@ class PlayerProvider with ChangeNotifier {
       return PlayerFileType.unknown;
     }
   }
+}
 
-  // music player  methods
-
-  //video player  methods
+extension _ActivePlayerDispose on ActivePlayer? {
+  void disposeIfSupported() {
+    switch (this) {
+      case AudioActive(:final player):
+        player.dispose();
+      case VideoActive(:final controller):
+        controller.dispose();
+      case ImageActive():
+        break;
+      case null:
+        break;
+    }
+  }
 }
