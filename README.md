@@ -2,13 +2,14 @@
 An open source cloud platform for the masses.
 
 ## What is Open Cloud? ☁️
-It is A unlimited Cloud Storage App. Powered By Firebase Free Tier.
+It is a multi-project Cloud Storage App. Powered By Firebase Free Tier.
 Just Upload your config for your firebase project and you have your own cloud storage app.
 
-## How is it Unlimited? ♾️
-- Firebase Free Tier is unlimited. You can upload as much as you want. But you can't download more than 1GB per day.
-- But By adding multiple firebase projects you can download more than 1GB per day.
-- You can add unlimited firebase projects That's why it is unlimited.
+## How does the storage work? ☁️
+Open Cloud is multi-project storage: you add one or more Firebase projects through the app, and each project contributes its own Firebase Storage free-tier quota.
+- Firebase Storage's free tier is **not unlimited**: it includes limited storage (5 GB) and limited daily egress (1 GB/day) per Firebase project.
+- By adding multiple Firebase projects, each project's free-tier quota is available in the same app, so you can store and download more across projects.
+- You can add as many Firebase projects as you want — each one is isolated and brings its own quota.
 
 ## How to use it? 🤔
 
@@ -17,13 +18,14 @@ Just Upload your config for your firebase project and you have your own cloud st
 3. Enable Email/Password Authentication for the first project.
 4. Enable Storage for all projects.
 5. Register app with firebase and download google-services.json file for all projects.
-6. Add all the google-services.json files to the app.
+6. Open the app, go to the "Add Project" screen, and pick/export each project's `google-services.json` through the in-app file picker. The config is imported at runtime — nothing is bundled in the app.
 
 ## features 📋
-- Unlimited Cloud Storage
-- Public Urls for all the files on demand (Make it accessible to anyone with the link)
+- Multi-project Cloud Storage (each Firebase project brings its own free-tier quota)
+- Public URLs for all the files on demand (make any file accessible to anyone with the link)
 
-## Download [Here](https://github.com/xxparthparekhxx/opencloud/blob/master/app-release.apk)
+## Download
+Get the latest build from the [GitHub Releases page](https://github.com/xxparthparekhxx/opencloud/releases). Releases are the official distribution channel; APKs are not committed to the repository.
 
 ## Roadmap 🚀
 - [x] Unlimited upload upto 5gb ( per project )
