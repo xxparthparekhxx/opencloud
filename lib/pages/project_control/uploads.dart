@@ -1,4 +1,6 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:opencloud/providers/openprovider.dart';
 
 class Uploads extends StatelessWidget {
   const Uploads({Key? key}) : super(key: key);
@@ -6,22 +8,24 @@ class Uploads extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var Uploads = Provider.of<OpenDrive>(context).uploadingTasks;
+    var uploads = Provider.of<OpenDrive>(context).uploadingTasks;
     return Scaffold(
       appBar: AppBar(
         title: const Text("Uploads"),
       ),
       body: ListView.builder(
-        itemCount: Uploads.length,
+        itemCount: uploads.length,
         itemBuilder: (context, index) {
-          double progress = (Uploads[index].task.snapshot.bytesTransferred /
-              Uploads[index].task.snapshot.totalBytes);
+          final task = uploads[index].task.snapshot;
+          final totalBytes = task.totalBytes;
+          final progress =
+              totalBytes <= 0 ? null : task.bytesTransferred / totalBytes;
           return ListTile(
-            title: Text(Uploads[index].task.snapshot.ref.name),
+            title: Text(task.ref.name),
             isThreeLine: true,
             subtitle: Column(
               children: [
-                Text(Uploads[index].toProject),
+                Text(uploads[index].toProject),
                 LinearProgressIndicator(
                   // set the value of the progress indicator in percentage
                   value: progress != 0 ? progress : null,

@@ -1,8 +1,13 @@
-import 'package:opencloud/utils/importer.dart';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:opencloud/providers/openprovider.dart';
 
 class AddProject extends StatefulWidget {
-  final bool isInital;
-  const AddProject({Key? key, this.isInital = false}) : super(key: key);
+  final bool isInitial;
+  const AddProject({Key? key, this.isInitial = false}) : super(key: key);
   static const String routeName = '/AddProject';
 
   @override
@@ -12,15 +17,14 @@ class AddProject extends StatefulWidget {
 class _AddProjectState extends State<AddProject> {
   @override
   Widget build(BuildContext context) {
-    print(widget.isInital);
     Size ss = MediaQuery.of(context).size;
     return Scaffold(
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Row(),
-          if (widget.isInital) const Text("Welcome Add your First Project"),
-          if (!widget.isInital) const Text("Add your Project"),
+          const Row(),
+          if (widget.isInitial) const Text("Welcome Add your First Project"),
+          if (!widget.isInitial) const Text("Add your Project"),
           const SizedBox(height: 20),
           Material(
             child: InkWell(
@@ -32,15 +36,16 @@ class _AddProjectState extends State<AddProject> {
                 );
                 if (res != null) {
                   try {
-                    print(res.files.first.path);
                     String file =
                         await File(res.files.first.path!).readAsString();
+                    if (!context.mounted) return;
                     await Provider.of<OpenDrive>(context, listen: false)
                         .createProjectFromJson(
-                            data: file, isInitial: widget.isInital);
+                            data: file, isInitial: widget.isInitial);
+                    if (!context.mounted) return;
                     Navigator.of(context).pop();
                   } catch (e) {
-                    print(e);
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(e.toString()),
@@ -48,8 +53,6 @@ class _AddProjectState extends State<AddProject> {
                     );
                   }
                 }
-                // await Provider.of<OpenDrive>(context, listen: false)
-                //     .createProjectFromJson();
               },
               child: Container(
                   decoration: BoxDecoration(

@@ -1,4 +1,7 @@
-import 'package:opencloud/utils/importer.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:opencloud/providers/openprovider.dart';
+import 'package:opencloud/pages/project_control/widgets/list_files.dart';
 
 class NewFileAlertDialog extends StatefulWidget {
   const NewFileAlertDialog({
@@ -42,6 +45,7 @@ class _NewFileAlertDialogState extends State<NewFileAlertDialog> {
                   proj: widget.widget.app);
             }
             await widget.widget.reload();
+            if (!context.mounted) return;
             Navigator.of(context).pop();
           },
         ),

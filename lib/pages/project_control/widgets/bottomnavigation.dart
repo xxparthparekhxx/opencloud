@@ -28,6 +28,8 @@ class BottomNav extends StatelessWidget {
               label: "Files"),
           const BottomNavigationBarItem(
               icon: Icon(Icons.cloud_upload), label: "uploads"),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: "Settings"),
         ]);
   }
 }
