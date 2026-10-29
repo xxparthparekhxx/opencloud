@@ -8,14 +8,6 @@ void main() {
       expect(kBaseConfigPrefKey, 'BaseConfig');
     });
 
-    test('kEmailPrefKey', () {
-      expect(kEmailPrefKey, 'email');
-    });
-
-    test('kPasswordPrefKey', () {
-      expect(kPasswordPrefKey, 'password');
-    });
-
     test('kProjectsCollection', () {
       expect(kProjectsCollection, 'projects');
     });

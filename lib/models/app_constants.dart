@@ -4,12 +4,6 @@ library opencloud.app_constants;
 /// (the "BaseConfig") is persisted.
 const String kBaseConfigPrefKey = "BaseConfig";
 
-/// SharedPreferences key under which the signed-in user's email is persisted.
-const String kEmailPrefKey = "email";
-
-/// SharedPreferences key under which the signed-in user's password is persisted.
-const String kPasswordPrefKey = "password";
-
 /// Firestore collection name that stores per-project Firebase config documents.
 const String kProjectsCollection = "projects";
 
