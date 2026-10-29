@@ -52,18 +52,21 @@ class OpenDrive with ChangeNotifier {
         notifyListeners();
 
         // set User listener
-        _authService!.authStateChanges.listen((event) {
+        _authService!.authStateChanges.listen((event) async {
           _user = event;
           notifyListeners();
+          if (event != null) {
+            await fetchAllProjectsOfCurrentUser();
+          }
         });
-        if (_prefs!.getString(kEmailPrefKey) != null) {
-          await _authService!.signInOrCreate(
-            email: _prefs!.getString(kEmailPrefKey)!,
-            password: _prefs!.getString(kPasswordPrefKey)!,
-          );
+        // Firebase Auth persists the session on the device, so the signed-in
+        // user is restored automatically instead of re-sending stored
+        // credentials.
+        _user = _authService!.user;
+        notifyListeners();
+        if (_user != null) {
           await fetchAllProjectsOfCurrentUser();
         }
-        notifyListeners();
       }
     } catch (e) {
       _initError = e;
@@ -83,16 +86,31 @@ class OpenDrive with ChangeNotifier {
 
   Future<void> createProjectFromJson(
       {required String data, bool isInitial = false}) async {
+    final ops = fbOpsFromJson(data);
+
     if (isInitial) {
-      _baseApp = await _projectRepository!.createProjectFromJson(
-        data: data,
-        isInitial: true,
-      );
-      _authService = AuthService(app: _baseApp!);
-      _projectRepository = ProjectRepository(app: _baseApp!);
+      // First launch: there is no base app yet, so the project repository
+      // (scoped to the base app) does not exist either. Persist the base
+      // config first so a restart remembers this project, then initialize
+      // the base app directly and set up the auth/project services on top
+      // of it instead of going through a null repository.
+      _prefs ??= await SharedPreferences.getInstance();
+      final prefs = _prefs!;
+      if (prefs.getString(kBaseConfigPrefKey) == null) {
+        await prefs.setString(kBaseConfigPrefKey, data);
+      }
+      if (_baseApp == null) {
+        _baseApp = await Firebase.initializeApp(options: ops);
+        _authService = AuthService(app: _baseApp!);
+        _projectRepository = ProjectRepository(app: _baseApp!);
+        notifyListeners();
+      }
+      await fetchAllProjectsOfCurrentUser();
       notifyListeners();
+      return;
     }
-    if (_baseApp == null && !isInitial) {
+
+    if (_baseApp == null) {
       throw Exception("Firebase not initialized");
     }
     await _projectRepository!.createProjectFromJson(data: data);
@@ -102,7 +120,8 @@ class OpenDrive with ChangeNotifier {
 
   /// Sign in with email/password, creating the account if it does not exist
   /// (`user-not-found`). Any other auth failure is rethrown so the UI can
-  /// surface it; credentials are only persisted on success.
+  /// surface it; credentials are not persisted (Firebase Auth keeps the
+  /// session on the device).
   Future<void> login({required String email, required String password}) async {
     if (_baseApp == null) {
       throw Exception("Firebase not initialized");
@@ -116,8 +135,9 @@ class OpenDrive with ChangeNotifier {
     } on FirebaseAuthException {
       rethrow;
     }
-    await _prefs!.setString(kEmailPrefKey, email);
-    await _prefs!.setString(kPasswordPrefKey, password);
+    // Credentials are not stored locally: Firebase Auth persists the session
+    // on the device, and the account is re-derived from the base app's
+    // options whenever the app restarts.
     notifyListeners();
   }
 
