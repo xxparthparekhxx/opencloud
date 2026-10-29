@@ -14,3 +14,6 @@ key.properties
 
 # Gradle build output
 /build/
+
+# Kotlin 2.x compiler session data
+/.kotlin/
