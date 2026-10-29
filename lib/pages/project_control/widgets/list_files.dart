@@ -54,18 +54,14 @@ class _ListFilesState extends State<ListFiles> {
   bool isLoading = false;
 
   Future<void> uploadFile() async {
-    FilePickerResult? re = await FilePicker.platform.pickFiles(
-      allowCompression: false,
-      allowMultiple: true,
-    );
-    if (re != null) {
-      List<PlatformFile> files = re.files;
+    final List<PlatformFile> files = await FilePicker.pickFiles();
+    if (files.isNotEmpty) {
       if (!mounted) return;
       widget.addToParent(await Provider.of<OpenDrive>(context, listen: false)
           .uploadFileToProject(
               app: widget.app,
               uploadpath: widget.path,
-              paths: files.map((e) => e.path!).toList()));
+              paths: files.map((e) => e.path).whereType<String>().toList()));
     }
   }
 

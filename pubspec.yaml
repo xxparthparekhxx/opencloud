@@ -17,13 +17,13 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  firebase_core: ^2.24.2
-  firebase_storage: ^11.6.0
-  firebase_auth: ^4.16.0
+  firebase_core: ^5.1.0
+  firebase_storage: ^14.0.1
+  firebase_auth: ^7.0.1
   provider: ^6.1.1
   shared_preferences: ^2.0.15
-  cloud_firestore: ^4.14.0
-  file_picker: ^3.0.4
+  cloud_firestore: ^7.1.0
+  file_picker: ^13.3.0
   url_launcher: ^6.1.5
   just_audio: ^0.9.28
   video_player: ^2.4.6
@@ -32,11 +32,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_app_name: ^0.1.0
   flutter_lints: ^2.0.0
-
-flutter_app_name:
-  name: "Open Cloud"
 
 flutter:
   uses-material-design: true

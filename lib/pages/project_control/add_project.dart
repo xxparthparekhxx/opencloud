@@ -29,15 +29,17 @@ class _AddProjectState extends State<AddProject> {
           Material(
             child: InkWell(
               onTap: () async {
-                FilePickerResult? res = await FilePicker.platform.pickFiles(
-                  allowMultiple: false,
+                final PlatformFile? picked = await FilePicker.pickFile(
                   type: FileType.custom,
                   allowedExtensions: ['json'],
                 );
-                if (res != null) {
+                if (picked != null) {
                   try {
-                    String file =
-                        await File(res.files.first.path!).readAsString();
+                    final path = picked.path;
+                    if (path == null) {
+                      throw Exception("Could not read the selected file");
+                    }
+                    String file = await File(path).readAsString();
                     if (!context.mounted) return;
                     await Provider.of<OpenDrive>(context, listen: false)
                         .createProjectFromJson(
