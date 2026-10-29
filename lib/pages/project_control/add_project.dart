@@ -45,7 +45,10 @@ class _AddProjectState extends State<AddProject> {
                         .createProjectFromJson(
                             data: file, isInitial: widget.isInitial);
                     if (!context.mounted) return;
-                    Navigator.of(context).pop();
+                    // On first launch this page is the splash screen's body,
+                    // not a pushed route: popping it would leave a blank
+                    // screen. The splash screen moves on by itself.
+                    if (!widget.isInitial) Navigator.of(context).pop();
                   } catch (e) {
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
