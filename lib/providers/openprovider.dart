@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,8 +30,27 @@ class OpenDrive with ChangeNotifier {
 
   AuthService? _authService;
   ProjectRepository? _projectRepository;
+  StreamSubscription<User?>? _authSubscription;
+
+  AccountStatus _accountStatus = AccountStatus.signedOut;
+  // The uid [_accountStatus] was worked out for, so repeated auth events for
+  // the same user do not check the account again.
+  String? _statusUid;
+  // True while signIn/signUp/secureLegacyAccount run. They settle the
+  // account state themselves when done, so auth events in between are
+  // ignored.
+  bool _authInFlight = false;
+  String? _pendingEmail;
 
   OpenDrive();
+
+  /// Test-only constructor: skips Firebase initialization and uses
+  /// [authService] (typically backed by a fake `AuthClient`). There is no
+  /// project registry, so no projects are loaded.
+  @visibleForTesting
+  OpenDrive.forTesting({required AuthService authService}) {
+    _attachAuth(authService);
+  }
 
   // Getters
   FirebaseApp? get baseApp => _baseApp;
@@ -38,6 +58,96 @@ class OpenDrive with ChangeNotifier {
   User? get user => _user;
   List<UploadMeta> get uploadingTasks => _uploadingTasks;
   Object? get initError => _initError;
+  AccountStatus get accountStatus => _accountStatus;
+
+  /// The address the email-change verification link was just sent to.
+  String? get pendingEmail => _pendingEmail;
+
+  bool get _hasUsableAccount =>
+      _accountStatus == AccountStatus.ready ||
+      _accountStatus == AccountStatus.awaitingEmailChange;
+
+  void _setUpBaseApp(FirebaseApp app) {
+    _baseApp = app;
+    _projectRepository = ProjectRepository(app: app);
+    _attachAuth(AuthService.forApp(app));
+  }
+
+  void _attachAuth(AuthService authService) {
+    _authService = authService;
+    _authSubscription?.cancel();
+    _authSubscription =
+        authService.authStateChanges.listen(_onAuthStateChanged);
+  }
+
+  AuthService _requireAuth() {
+    final auth = _authService;
+    if (auth == null) {
+      throw Exception("Firebase not initialized");
+    }
+    return auth;
+  }
+
+  Future<void> _onAuthStateChanged(User? user) async {
+    if (_authInFlight || user?.uid == _statusUid) return;
+    await _updateAccount(user);
+    if (_hasUsableAccount) await _loadProjects();
+  }
+
+  /// Sets [user] as the signed-in user and works out [accountStatus] for it
+  /// (see [AuthService.checkAccount]).
+  Future<void> _updateAccount(User? user) async {
+    _user = user;
+    if (user == null) {
+      _statusUid = null;
+      _accountStatus = AccountStatus.signedOut;
+      _projects.clear();
+      notifyListeners();
+      return;
+    }
+    _statusUid = user.uid;
+    _accountStatus = AccountStatus.checking;
+    notifyListeners();
+
+    AccountStatus status;
+    try {
+      status = await _authService!.checkAccount();
+    } catch (_) {
+      // Firebase could not be reached to tell whether this legacy account
+      // was already secured. Ask for it to be secured: submitting that form
+      // also copes with an account that already was.
+      status = AccountStatus.needsSecuring;
+    }
+    // A newer auth event (e.g. the sign-out checkAccount does when the
+    // session has ended) has already settled the state.
+    if (_statusUid != user.uid) return;
+
+    _user = _authService!.user;
+    if (status == AccountStatus.signedOut) {
+      _statusUid = null;
+      _projects.clear();
+    }
+    _accountStatus = status;
+    notifyListeners();
+  }
+
+  /// Runs an auth call, keeping auth events from interfering with it.
+  Future<T> _whileAuthInFlight<T>(Future<T> Function() action) async {
+    _authInFlight = true;
+    try {
+      return await action();
+    } catch (_) {
+      _authInFlight = false;
+      // A call that failed part-way can still have changed who is signed in
+      // (e.g. the legacy account was signed into before a later step
+      // failed), so catch up with the session.
+      final current = _authService?.user;
+      if (current?.uid != _statusUid) await _updateAccount(current);
+      rethrow;
+    } finally {
+      _authInFlight = false;
+    }
+  }
 
   Future<void> init() async {
     _initError = null;
@@ -46,25 +156,15 @@ class OpenDrive with ChangeNotifier {
       String? config = _prefs!.getString(kBaseConfigPrefKey);
       if (config != null) {
         // initialize firebase
-        _baseApp = await Firebase.initializeApp(options: fbOpsFromJson(config));
-        _authService = AuthService(app: _baseApp!);
-        _projectRepository = ProjectRepository(app: _baseApp!);
+        _setUpBaseApp(
+            await Firebase.initializeApp(options: fbOpsFromJson(config)));
         notifyListeners();
 
-        // set User listener
-        _authService!.authStateChanges.listen((event) async {
-          _user = event;
-          notifyListeners();
-          if (event != null) {
-            await fetchAllProjectsOfCurrentUser();
-          }
-        });
         // Firebase Auth persists the session on the device, so the signed-in
         // user is restored automatically instead of re-sending stored
         // credentials.
-        _user = _authService!.user;
-        notifyListeners();
-        if (_user != null) {
+        await _updateAccount(_authService!.user);
+        if (_hasUsableAccount) {
           await fetchAllProjectsOfCurrentUser();
         }
       }
@@ -73,15 +173,30 @@ class OpenDrive with ChangeNotifier {
     }
   }
 
+  /// Loads the signed-in user's projects. Signed out, there are none.
   Future<void> fetchAllProjectsOfCurrentUser() async {
     if (_baseApp == null) {
       throw Exception("Firebase not initialized");
     }
-    final fetched = await _projectRepository!.fetchAllProjects();
+    final uid = _user?.uid;
+    if (uid == null) {
+      _projects.clear();
+      notifyListeners();
+      return;
+    }
+    final fetched = await _projectRepository!.fetchAllProjects(ownerUid: uid);
+    // Signed out, or into another account, while fetching.
+    if (_user?.uid != uid) return;
     _projects
       ..clear()
       ..addAll(fetched);
     notifyListeners();
+  }
+
+  Future<void> _loadProjects() async {
+    // Without a base app there is no project registry (only in tests).
+    if (_projectRepository == null) return;
+    await fetchAllProjectsOfCurrentUser();
   }
 
   Future<void> createProjectFromJson(
@@ -100,12 +215,13 @@ class OpenDrive with ChangeNotifier {
         await prefs.setString(kBaseConfigPrefKey, data);
       }
       if (_baseApp == null) {
-        _baseApp = await Firebase.initializeApp(options: ops);
-        _authService = AuthService(app: _baseApp!);
-        _projectRepository = ProjectRepository(app: _baseApp!);
+        _setUpBaseApp(await Firebase.initializeApp(options: ops));
         notifyListeners();
+        await _updateAccount(_authService!.user);
       }
-      await fetchAllProjectsOfCurrentUser();
+      if (_hasUsableAccount) {
+        await fetchAllProjectsOfCurrentUser();
+      }
       notifyListeners();
       return;
     }
@@ -113,32 +229,61 @@ class OpenDrive with ChangeNotifier {
     if (_baseApp == null) {
       throw Exception("Firebase not initialized");
     }
-    await _projectRepository!.createProjectFromJson(data: data);
+    final uid = _user?.uid;
+    if (uid == null) {
+      throw Exception("Sign in before adding a project");
+    }
+    await _projectRepository!.createProjectFromJson(data: data, ownerUid: uid);
     await fetchAllProjectsOfCurrentUser();
     notifyListeners();
   }
 
-  /// Sign in with email/password, creating the account if it does not exist
-  /// (`user-not-found`). Any other auth failure is rethrown so the UI can
-  /// surface it; credentials are not persisted (Firebase Auth keeps the
-  /// session on the device).
-  Future<void> login({required String email, required String password}) async {
-    if (_baseApp == null) {
-      throw Exception("Firebase not initialized");
-    }
-    try {
-      final cred = await _authService!.signInOrCreate(
-        email: email,
-        password: password,
-      );
-      _user = cred.user;
-    } on FirebaseAuthException {
-      rethrow;
-    }
-    // Credentials are not stored locally: Firebase Auth persists the session
-    // on the device, and the account is re-derived from the base app's
-    // options whenever the app restarts.
+  /// Signs in with the user's own email/password. Failures (wrong password,
+  /// unknown account, ...) are rethrown for the UI to surface. Credentials
+  /// are not persisted: Firebase Auth keeps the session on the device.
+  Future<void> signIn({required String email, required String password}) =>
+      _signInWith(() => _requireAuth().signIn(email: email, password: password));
+
+  /// Creates an account with the user's own email/password and signs into
+  /// it. Failures (email already in use, weak password, ...) are rethrown
+  /// for the UI to surface.
+  Future<void> signUp({required String email, required String password}) =>
+      _signInWith(() => _requireAuth().signUp(email: email, password: password));
+
+  Future<void> _signInWith(Future<UserCredential> Function() action) async {
+    final cred = await _whileAuthInFlight(action);
+    await _updateAccount(cred.user);
+    if (_hasUsableAccount) await _loadProjects();
+  }
+
+  /// The one-time "secure your account" step for a legacy account (see
+  /// [AuthService.secureLegacyAccount]). Works whether the legacy session was
+  /// restored or the user is signed out.
+  ///
+  /// On success [accountStatus] is [AccountStatus.emailChangeSent] until
+  /// [acknowledgeEmailChangeSent] is called.
+  Future<void> secureLegacyAccount({
+    required String newEmail,
+    required String newPassword,
+  }) async {
+    final auth = _requireAuth();
+    await _whileAuthInFlight(() => auth.secureLegacyAccount(
+          newEmail: newEmail,
+          newPassword: newPassword,
+        ));
+    _user = auth.user;
+    _statusUid = _user?.uid;
+    _pendingEmail = newEmail;
+    _accountStatus = AccountStatus.emailChangeSent;
     notifyListeners();
+  }
+
+  /// The user has read that the email change completes when they click the
+  /// verification link: carry on into the app.
+  Future<void> acknowledgeEmailChangeSent() async {
+    _accountStatus = AccountStatus.awaitingEmailChange;
+    notifyListeners();
+    await _loadProjects();
   }
 
   /// Deletes the Firestore project document and removes the matching app from
@@ -153,10 +298,19 @@ class OpenDrive with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _authService!.signOut();
+    await _requireAuth().signOut();
     _user = null;
+    _statusUid = null;
+    _pendingEmail = null;
+    _accountStatus = AccountStatus.signedOut;
     _projects.clear();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
   }
 
   Future<ListResult> listAllTheFilesOfAProject(

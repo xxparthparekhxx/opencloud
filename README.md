@@ -19,6 +19,56 @@ Open Cloud is multi-project storage: you add one or more Firebase projects throu
 4. Enable Storage for all projects.
 5. Register app with firebase and download google-services.json file for all projects.
 6. Open the app, go to the "Add Project" screen, and pick/export each project's `google-services.json` through the in-app file picker. The config is imported at runtime — nothing is bundled in the app.
+7. Create your account with your own email and password (or sign in, if you already have one). If you used a version of Open Cloud from before accounts existed, choose **Secure your existing account** instead (see below).
+8. Publish the [recommended Security Rules](#recommended-firebase-security-rules) for the first project.
+
+## Accounts 🔐
+You sign in to the first project's Firebase Authentication with an email and password you choose. Firebase Auth keeps you signed in on the device; Open Cloud itself stores no credentials.
+
+### Upgrading from an earlier version
+Earlier versions signed every install in with an email and password derived from the project's Firebase API key (`<apiKey>@opencloud.org` / `<apiKey>`). API keys are not secret: they are in every config file and app built from it, so anyone with the config could sign in as you.
+
+On first start after updating, the app asks you to **secure your account**: it signs in with the old derived credentials one last time, replaces the password with one you choose, and asks Firebase to move the account to your email address. The password changes immediately. The email change completes when you click the verification link Firebase sends to the new address; until then the account keeps its old address. If you are signed out before clicking the link, choose **Secure your existing account** on the sign-in screen and enter your new password to get a new link.
+
+## Recommended Firebase Security Rules
+### Cloud Firestore (first project)
+The first project's Firestore holds the list of your projects (collection `projects`). Each entry records the uid of the account that added it in an `owner` field, and the app filters its queries to the signed-in account's entries, so these rules let each account read and write only its own entries:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /projects/{projectId} {
+      allow read, delete: if request.auth != null
+        && resource.data.owner == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.owner == request.auth.uid;
+      allow update: if request.auth != null
+        && resource.data.owner == request.auth.uid
+        && request.resource.data.owner == request.auth.uid;
+    }
+  }
+}
+```
+
+**Upgrading:** entries created by earlier versions have no `owner`. Update the app and sign in (or secure your account) once *before* publishing these rules: the first time it loads your projects, the app tags every entry without an owner with your account, which only works while the old rules still allow it. Entries left untagged are hidden by these rules.
+
+### Cloud Storage (every project)
+Not possible yet. The app opens each storage project as a separate Firebase app and only signs in to the first project, so requests to your storage buckets carry no `request.auth`. An owner-only rule such as
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == "<your uid in this project>";
+    }
+  }
+}
+```
+
+would block the app entirely, so **do not publish it with this version**. Locking Storage down to the owner needs the app to also sign in to each storage project, which it does not do yet. Until then, your files are only as private as each bucket's current rules, and the app works only with rules that allow unauthenticated access.
 
 ## features 📋
 - Multi-project Cloud Storage (each Firebase project brings its own free-tier quota)

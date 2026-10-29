@@ -7,6 +7,11 @@ const String kBaseConfigPrefKey = "BaseConfig";
 /// Firestore collection name that stores per-project Firebase config documents.
 const String kProjectsCollection = "projects";
 
+/// Field of a project document holding the uid of the account that added it.
+/// Owner-only Firestore Security Rules (see the README) check it against
+/// `request.auth.uid`.
+const String kProjectOwnerField = "owner";
+
 /// Name of the placeholder file used to materialize an empty folder
 /// in Firebase Storage (folders cannot exist without at least one object).
 const String kFolderPlaceholderFileName = "NEWFILEPLACEHOLDER.txt";

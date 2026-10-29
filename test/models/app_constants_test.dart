@@ -12,6 +12,10 @@ void main() {
       expect(kProjectsCollection, 'projects');
     });
 
+    test('kProjectOwnerField matches the README Security Rules', () {
+      expect(kProjectOwnerField, 'owner');
+    });
+
     test('kFolderPlaceholderFileName', () {
       expect(kFolderPlaceholderFileName, 'NEWFILEPLACEHOLDER.txt');
     });
